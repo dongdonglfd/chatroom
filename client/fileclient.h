@@ -416,7 +416,5 @@ void sendFile(int sockfd,string currentuser)
         
     }
     
-
-    
     
 };

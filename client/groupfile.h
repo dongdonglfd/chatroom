@@ -38,6 +38,15 @@ using namespace std;
 #define BUFFER_SIZE 1024
 #define MAX_EVENTS 10
 string addressfile;
+struct FileInfoo {
+    int id;
+    int groupid;
+    std::string sender;
+    std::string file_name;
+    uint64_t file_size;
+    uint64_t created_at;
+    std::string file_path;
+};
 class groupfile
 {
 private:
@@ -72,6 +81,38 @@ private:
         send(sock, requestStr.c_str(), requestStr.size(), 0);
         
         // 接收响应
+        // char buffer[4096] = {0};
+        // ssize_t bytes = recv(sock, buffer, sizeof(buffer), 0);
+        // if (bytes <= 0) {
+        //     throw std::runtime_error("接收响应失败");
+        // }
+
+        std::string response;
+        char c;
+        while (true) {
+            ssize_t n = recv(sock, &c, 1, 0);
+            if (n <= 0) {
+                throw std::runtime_error("接收失败");
+            }
+            if (c == '\n') {
+                break;
+            }
+            response.push_back(c);
+        }
+        
+
+        
+        return json::parse(std::string(response));
+    }
+    json sendReq(int sock, const json& request) 
+    {
+        // 序列化请求
+        std::string requestStr = request.dump();
+        
+        // 发送请求
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        
+        // 接收响应
         char buffer[4096] = {0};
         ssize_t bytes = recv(sock, buffer, sizeof(buffer), 0);
         if (bytes <= 0) {
@@ -90,6 +131,7 @@ public :
         // 输入用户名
         cout << "请输入群号: ";
         cin>>groupid;
+        getchar();
         // 输入文件路径
         bool validPath = false;
         while (!validPath) {
@@ -108,12 +150,13 @@ public :
                 }
             }
         }
+        uploadgroupFileToServer(filePath,sockfd);
         //获取文件信息
         string fileName = fs::path(filePath).filename().string();
         uint64_t fileSize = fs::file_size(filePath);
         // 发送文件上传请求
         json request = {
-            {"type", "file_upload_request"},
+            {"type", "groupfile_upload_request"},
             {"user", currentUser},
             {"file_name", fileName},
             {"file_size", fileSize},
@@ -127,9 +170,9 @@ public :
                  << response.value("message", "未知错误") << endl;
             return;
         }
-        uploadgroupFileToServer(filePath,sockfd);
+        cout<<"发送成功"<<endl;
     }
-    void pasvclient()
+    void pasvclient(uint16_t port)
     {
         cfd=socket(AF_INET,SOCK_STREAM,0);
         if(cfd==-1)
@@ -142,9 +185,9 @@ public :
         //2.连接服务器
         struct sockaddr_in addr;
         addr.sin_family=AF_INET;//IPV4
-        addr.sin_port=htons(8090);//网络字节序
+        addr.sin_port=htons(port);//网络字节序
         //变成大端
-        inet_pton(AF_INET,address.c_str(),&addr.sin_addr.s_addr);
+        inet_pton(AF_INET,addressfile.c_str(),&addr.sin_addr.s_addr);
         int ret=connect(cfd,(struct sockaddr*)&addr,sizeof(addr));
         if(ret==-1)
         {
@@ -165,9 +208,22 @@ public :
             {"filesize",fileSize}
         };
         std::string startStr = startMsg.dump();
-        json response = sendRequest(sock, startMsg);
-        //uint16_t port=response["port"];
-        pasvclient();
+        json response = sendreq(sock, startMsg);
+        
+        if (!response.value("success", false)) {
+            std::string error = response.value("error", "未知错误");
+            throw std::runtime_error("服务器拒绝文件传输: " + error);
+        }
+        
+        // 5. 安全获取端口号
+        if (!response.contains("port") || !response["port"].is_number()) {
+            // 打印调试信息
+            std::cerr << "无效的服务器响应: " << response.dump() << std::endl;
+            throw std::runtime_error("服务器未提供有效的端口号");
+        }
+        uint16_t port = response["port"];
+        cout<<"port = "<<port<<endl;
+        pasvclient(port);
          char buffer[4096];
         ssize_t total = 0;
         
@@ -199,8 +255,140 @@ public :
         };
         json endResponse = sendRequest(sock, endMsg);
         close(cfd);
+        file.close();
         
         std::cout << "文件上传完成: " << filePath << std::endl;
     }
+    void getUndeliveredgroupFiles(int client_sock, const std::string& username)
+    {
+        sock=client_sock;
+        currentUser=username;
+        json request = {
+            {"type", "get_undelivered_groupfiles"},
+            {"username", username},
+
+
+        };
+        
+        // 2. 发送请求
+        json response = sendReq(sock, request);// 3. 检查响应状态
+        if (!response.value("success", false)) {
+            throw std::runtime_error("服务器错误: " + response.value("message", ""));
+        }
+
+        std::vector<FileInfoo> filesstore;
+        for (const auto & files :response["messages"])
+        {
+            FileInfoo file;
+            file.id = files["id"];
+            file.groupid=files["groupid"];
+            file.sender = files["sender"];
+            file.file_name = files["file_name"];
+            file.file_size = files["file_size"];
+            file.created_at = files["timestamp"];
+            filesstore.push_back(file);
+        
+        }
+        std::cout << "======================================================================" << std::endl;
+        std::cout << "ID"<<"\t"<<"群号"<<"\t"<<"发送者"<<"\t"<<"文件名"<<"\t"<<"大小"<<"\t"<<"时间"<<"\t" << std::endl;
+        std::cout << "----------------------------------------------------------------------" << std::endl;
+        for(const auto & info :filesstore)
+        {
+            time_t timestamp = info.created_at;
+            tm* localTime = localtime(&timestamp);
+            char timeBuffer[80];
+            strftime(timeBuffer, sizeof(timeBuffer), "%Y-%m-%d %H:%M", localTime);
+            cout<<info.id<<"\t"<<info.groupid<<"\t"<<info.sender<<"\t"<<info.file_name<<"\t"<<info.file_size<<"\t"<<timeBuffer<<"\t"<<endl;
+        }
+        cout<<"选择接收文件的id:"<<endl;
+        int id;
+        cin>>id;
+        getchar();
+        FileInfoo selectedFile;
+        if (id > 0) 
+        {
+            // 1. 在本地存储中查找文件信息
+            bool found = false;
+            
+            for (const auto& info : filesstore) {
+                if (info.id == id) {
+                    selectedFile = info;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) {
+                std::cout << "未找到ID为 " << id << " 的文件" << std::endl;
+                return;
+            }
+            
+        }
+        receivegroupfile(selectedFile);
+    }
+    void receivegroupfile(FileInfoo &selectedFile)
+    {   cout<<"123"<<endl;
+        json downloadRequest = {
+            {"type", "download_groupfile"},
+            {"file_id", selectedFile.id},
+            {"filename",selectedFile.file_name}
+
+        };
+        //json response = sendRequest(sock, downloadRequest);
+        json response = sendreq(sock,downloadRequest);
+        cout<<"2345"<<endl;
+        if (!response.value("success", false)) {
+            std::string error = response.value("error", "未知错误");
+            throw std::runtime_error("服务器拒绝文件传输: " + error);
+        }
+        
+        // 5. 安全获取端口号
+        if (!response.contains("port") || !response["port"].is_number()) {
+            // 打印调试信息
+            std::cerr << "无效的服务器响应: " << response.dump() << std::endl;
+            throw std::runtime_error("服务器未提供有效的端口号");
+        }
+        uint16_t port = response["port"];
+        cout<<"port = "<<port<<endl;
+        pasvclient(port);
+        char buffer[4096];
+        ssize_t total = 0;
+        cout<<"开始接收"<<endl;
+        std::ofstream file(selectedFile.file_name, std::ios::binary);
+        if(!file) {
+            cout<<"fail"<<endl;
+            return;
+        }
+        while (selectedFile.file_size>total) {
+            ssize_t bytes = recv(cfd, buffer, sizeof(buffer), 0);
+            if (bytes < 0) {
+                if (errno == EINTR) continue; // 处理中断
+                cout<<"1234"<<endl;
+                perror("recv error");
+                break;
+            }
+            if (bytes == 0) break; // 客户端关闭连接
+            
+            file.write(buffer, bytes);
+            if (!file) {
+                //send_response("451 本地文件写入错误");
+                break;
+            }
+            total += bytes;
+            
+            file.flush(); // 确保写入磁盘
+        }
+        cout<<"接收完成"<<endl;
+        close(cfd);
+        json endMsg = {
+            {"type", "groupfileclient_end"},
+            {"fileid",selectedFile.id},
+            {"success", true}
+            //{"bytes_sent", total_sent}
+        };
+        json endResponse = sendRequest(sock, endMsg);
+        
+    }
+    
 
 };

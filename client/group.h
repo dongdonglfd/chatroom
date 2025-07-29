@@ -20,7 +20,8 @@ class Group :public  groupchat,public groupfile
         sock = sockfd;
         currentUser = current_user;
         
-        while(true) {
+        while(true) 
+        {
             std::cout << "\n==== 群组管理 ====\n"
                      << "1. 创建群组\n"
                      << "2. 解散群组\n"
@@ -34,24 +35,58 @@ class Group :public  groupchat,public groupfile
                      << "10.接收文件\n"
                      << "11. 返回主菜单\n"
                      << "请选择操作: ";
-            
-            char choice;
-            std::cin >> choice;
-            
-            switch(choice) {
-                 case '1': createGroup(); break;
-                 case '2': disbandGroup(); break;
-                 case '3': joinGroup(); break;
-                 case '4': showMyGroups(); break;
-                 case '5': viewGroupInfo(); break;
-                 case '6': leaveGroup(); break;
-                 case '7': manageGroupMembers(); break;
-                 case '8': groupChat(sock,currentUser); break;
-                 case '9': sendgroupfile(sock,currentUser); break;
-                 case '10':
-                 case '11': return;
-                default: std::cout << "无效输入!\n";
+            // char choice;
+            // std::cin >> choice;
+            // switch(choice) {
+            //      case '1': createGroup(); break;
+            //      case '2': disbandGroup(); break;
+            //      case '3': joinGroup(); break;
+            //      case '4': showMyGroups(); break;
+            //      case '5': viewGroupInfo(); break;
+            //      case '6': leaveGroup(); break;
+            //      case '7': manageGroupMembers(); break;
+            //      case '8': groupChat(sock,currentUser); break;
+            //      case '9': sendgroupfile(sock,currentUser); break;
+            //      case '10':break;
+            //      case '11': return;break;
+            //     default: std::cout << "无效输入!\n";
+            // }
+            std::string choice;
+            //std::getline(std::cin, choice);
+            cin>>choice;
+            // 处理空输入
+            if (choice.empty()) {
+                std::cout << "输入不能为空，请重新选择！\n";
+                continue;
             }
+            
+            // 处理选项
+            if (choice == "1") {
+                createGroup();
+            } else if (choice == "2") {
+                disbandGroup();
+            } else if (choice == "3") {
+                joinGroup();
+            } else if (choice == "4") {
+                showMyGroups();
+            } else if (choice == "5") {
+                viewGroupInfo();
+            } else if (choice == "6") {
+                leaveGroup();
+            } else if (choice == "7") {
+                manageGroupMembers();
+            } else if (choice == "8") {
+                groupChat(sock, currentUser);
+            } else if (choice == "9") {
+                sendgroupfile(sock, currentUser);
+            } else if (choice == "10") {
+                getUndeliveredgroupFiles(sock, currentUser);
+            } else if (choice == "11") {
+                return; // 返回主菜单
+            } else {
+                std::cout << "无效输入! 请输入1-11之间的数字\n";
+            }
+            
         }
     }
     void createGroup()
