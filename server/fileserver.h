@@ -179,6 +179,8 @@ public:
             file.flush(); // 确保写入磁盘
         }
         cout<<"传输完成"<<endl;
+        close(listen_sock);
+        data_sock=-1;
         //setNonBlocking(client_sock);
     //handleFileData(client_sock, filepath);
     //transfrom(client_sock,file);

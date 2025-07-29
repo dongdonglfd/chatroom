@@ -15,6 +15,7 @@ private:
     string name;
     Friendserver mysql;
     Chat chat;
+    groupfileserver groupfile;
 
     // 处理客户端请求
     void handleClient(int client_fd) {
@@ -127,10 +128,19 @@ private:
                 privatefilesend(req,client_fd);
             }else if(type=="fileclient_end"){
                 updateFileDeliveryStatus(req,client_fd);
+            }else if(type=="groupfile_start"){
+                groupfile.handlegroupFileStart(req,client_fd);
+            }else if(type=="groupfile_end"){
+                groupfile.handlegroupFileEnd(req,client_fd);
+            }else if(type=="groupfile_upload_request"){
+                groupfile.handleFilegroupUploadRequest(client_fd, req);
+            }else if(type=="get_undelivered_groupfiles"){
+                groupfile.getUndeliveredgroupFiles(client_fd, req);
+            }else if(type=="groupfileclient_end"){
+                groupfile.updategroupFileDeliveryStatus(req,client_fd);
+            }else if(type=="download_groupfile"){
+                groupfile.groupfilesend(req,client_fd);
             }
-            
-            
-            
             
 
         } catch(const exception& e) {
