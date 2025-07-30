@@ -58,15 +58,18 @@ private:
     json sendRequest(int sock, const json& request) {
         string requestStr = request.dump();
         ssize_t size=send(sock, requestStr.c_str(), requestStr.size(), 0);
-        if(size<0)
-        {
-            cout<<"send fail"<<endl;
-        }
+        // if(size<0)
+        // {
+        //     cout<<"send fail"<<endl;
+        // }
         char buffer[4096];
         ssize_t bytesRead = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (bytesRead > 0) {
             // return {{"success",true}, {"message", "接收响应失败"}};
             return {{"success",true}};
+        }
+        else{
+            return {{"success",false}};
         }
         //return json::parse(buffer);
         

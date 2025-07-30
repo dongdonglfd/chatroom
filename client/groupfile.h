@@ -69,6 +69,9 @@ private:
             // return {{"success",true}, {"message", "接收响应失败"}};
             return {{"success",true}};
         }
+        else{
+            return {{"success",false}};
+        }
         //return json::parse(buffer);
         
     }

@@ -73,7 +73,7 @@ public:
         tcsetattr(STDIN_FILENO, TCSANOW, &origTermios);
     }
 
-    // 发送请求到服务器
+    //发送请求到服务器
     json sendRequest(const json& request) {
         // 序列化请求为JSON字符串
         string requestStr = request.dump();
@@ -95,6 +95,14 @@ public:
         
         // 对于不需要即时响应的请求直接返回
         return {{"success", true}};
+    }
+     json sendReq(const json& req) {
+        std::string requestStr = req.dump();
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+
+        char buffer[4096] = {0};
+        recv(sock, buffer, 4096, 0);
+        return json::parse(buffer);
     }
     void mainMenu() 
     {
@@ -183,11 +191,11 @@ public:
     }
     void startChatSession(const string& friendName) 
     {
-        // //检查好友关系和黑名单
-        // if (!isValidFriend(friendName)) {
-        //     std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
-        //     return;
-        // }
+        //检查好友关系和黑名单
+        if (!isValidFriend(friendName)) {
+            std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
+            return;
+        }
         // 设置终端为非阻塞模式
         displayUnreadMessagesFromFriend(friendName);
         //setNonBlockingTerminal();
@@ -386,29 +394,28 @@ public:
         }
         
     }
-    // bool isValidFriend(const std::string& friendName) 
-    // {
-    //     // if (friendName == currentUser) {
-    //     //     return false;
-    //     // }
+    int isValidFriend(const std::string& friendName) 
+    {
+        if (friendName == currentUser) {
+            return false;
+        }
         
-    //     // //向服务器查询
-    //     // json req;
-    //     // req["type"] = "check_friend_valid";
-    //     // req["user"] = currentUser;
-    //     // req["friend"] = friendName;
-    //     // json res = sendRequest(req);
-    //     // bool isValid = false;
-    //     // if (res["success"]) {
-    //     //     isValid = res["valid"];
-    //     // } else {
-    //     //     // 查询失败时保守处理
-    //     //     std::cerr << "✘ 好友验证失败: " << res["message"] << std::endl;
-    //     //     isValid = false;
-    //     // }
-    //     // return isValid;
-    //     //return true;
-    // }
+        //向服务器查询
+        json req;
+        req["type"] = "check_friend_valid";
+        req["user"] = currentUser;
+        req["friend"] = friendName;
+        json res = sendReq(req);
+        int isValid = 0;
+        if (res["success"]) {
+            isValid = res["valid"];
+        } else {
+            // 查询失败时保守处理
+            std::cerr << "✘ 好友验证失败: " << res["message"] << std::endl;
+            isValid = 0;
+        }
+        return isValid;
+    }
     void displayUnreadMessagesFromFriend(const string& friendName)
     {
         
