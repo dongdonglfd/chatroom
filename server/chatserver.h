@@ -97,46 +97,63 @@ class Chat
     }
     void handleCheckFriendValid(int fd, const json& req) 
     {
-        // string user = req["user"];
-        // string friendName = req["friend"];
+        string user = req["user"];
+        string friendName = req["friend"];
         
-        // unique_ptr<sql::Connection> con(getDBConnection());
-        // json response;
+        unique_ptr<sql::Connection> con(getDBConnection());
+        json response;
+        response["valid"] = 1;
         
-        // try {
+        try {
+            unique_ptr<sql::PreparedStatement> Stmt(
+                con->prepareStatement(
+                    "SELECT id FROM friends "
+                    "WHERE (user1 = ? AND user2 = ?)  "
+                    
+                )
+            );
+            Stmt->setString(1, user);
+            Stmt->setString(2, friendName);
+            unique_ptr<sql::ResultSet> Res(Stmt->executeQuery());
+            if (!Res->next()) {
+                response["valid"] = 0;
+                response["reason"] = "存在屏蔽关系";
+                response["success"] = true;
+                send(fd, response.dump().c_str(), response.dump().size(), 0);
+                return;
+            }           
+            unique_ptr<sql::PreparedStatement> blockStmt(
+                con->prepareStatement(
+                    "SELECT id FROM blocks "
+                    "WHERE (user = ? AND blocked_user = ?) OR "
+                    "(user = ? AND blocked_user = ?)"
+                )
+            );
+            blockStmt->setString(1, user);
+            blockStmt->setString(2, friendName);
+            blockStmt->setString(3, friendName);
+            blockStmt->setString(4, user);
             
-        //     unique_ptr<sql::PreparedStatement> blockStmt(
-        //         con->prepareStatement(
-        //             "SELECT id FROM blocks "
-        //             "WHERE (user = ? AND blocked_user = ?) OR "
-        //             "(user = ? AND blocked_user = ?)"
-        //         )
-        //     );
-        //     blockStmt->setString(1, user);
-        //     blockStmt->setString(2, friendName);
-        //     blockStmt->setString(3, friendName);
-        //     blockStmt->setString(4, user);
+            unique_ptr<sql::ResultSet> blockRes(blockStmt->executeQuery());
+            if (blockRes->next()) {
+                response["valid"] = 0;
+                response["reason"] = "存在屏蔽关系";
+                response["success"] = true;
+                send(fd, response.dump().c_str(), response.dump().size(), 0);
+                return;
+            }
             
-        //     unique_ptr<sql::ResultSet> blockRes(blockStmt->executeQuery());
-        //     if (blockRes->next()) {
-        //         response["valid"] = false;
-        //         response["reason"] = "存在屏蔽关系";
-        //         response["success"] = true;
-        //         send(fd, response.dump().c_str(), response.dump().size(), 0);
-        //         return;
-        //     }
+            // 所有检查通过
+            response["valid"] = 1;
+            response["reason"] = "有效好友";
+            response["success"] = true;
             
-        //     // 所有检查通过
-        //     response["valid"] = true;
-        //     response["reason"] = "有效好友";
-        //     response["success"] = true;
-            
-        // } catch (sql::SQLException &e) {
-        //     response["success"] = false;
-        //     response["message"] = "数据库错误: " + string(e.what());
-        // }
+        } catch (sql::SQLException &e) {
+            response["success"] = false;
+            response["message"] = "数据库错误: " + string(e.what());
+        }
         
-        // send(fd, response.dump().c_str(), response.dump().size(), 0);
+        send(fd, response.dump().c_str(), response.dump().size(), 0);
     }
     void handlePrivateMessage(int fd,const json& request)
     {
@@ -340,12 +357,14 @@ class Chat
         msgStmt->setString(1, username);
         msgStmt->setString(2, friendName);
         unique_ptr<sql::ResultSet> res(msgStmt->executeQuery());
+        
         json response;
         response["type"] = "friend_unread_messages";
         response["user"] = username;
         response["friend"] = friendName;
         if (!res->next()) {
             // 没有未读消息
+           
             response["success"] = false;
             response["message"] = "没有未读消息";
             response["count"] = 0;
@@ -370,7 +389,7 @@ class Chat
             response["success"] = true;
             response["messages"] = messagesArray;
         }
-
+        
         // 发送响应
         string responseStr = response.dump();
         send(fd, responseStr.c_str(), responseStr.size(), 0);
