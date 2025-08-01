@@ -52,13 +52,30 @@ class Friend
             switch(choice) {
                 case '1': addFriend(); break;
                 case '2': deleteFriend(); break;
-                case '3': blockFriend(); break;//处理屏蔽
+                case '3': block(); break;//处理屏蔽
                 case '4': showFriends(); break;
                 case '5': processRequest();break;//处理请求
                 case '6': showFriends();chat.privateChat(sock,currentUser);break;
                 case '7': showFriends();file.sendFile(sock,currentUser);break;
                 case '8': file.getUndeliveredFiles(sock,currentUser);break;
                 case '9': return;
+                default: std::cout << "无效输入!\n";
+            }
+        }
+    }
+    void block()
+    {
+        while(true){
+            cout<<"1. 屏蔽好友"<<endl;
+            cout<<"2. 解除屏蔽"<<endl;
+            cout<<"3. 返回上级"<<endl;
+            cout<< "请选择操作: ";
+            char choice;
+            std::cin >> choice;
+            switch(choice){
+                case '1': blockFriend(); break;
+                case '2': disblockFriend(); break;
+                case '3':return;
                 default: std::cout << "无效输入!\n";
             }
         }
@@ -145,6 +162,36 @@ class Friend
             std::cout << "✓ 用户已屏蔽\n";
         } else {
             std::cerr << "✘ 屏蔽失败: " << res["message"] << std::endl;
+        }
+    }
+     void disblockFriend()
+    {
+        std::cout << "\n=== 解除屏蔽 ===\n";
+        std::cout << "输入要解除屏蔽的用户名: ";
+        std::string blockName;
+        std::cin >> blockName;
+        
+        // 确认操作
+        std::cout << "确定要解除该用户屏蔽 " << blockName << " 吗? (y/n): ";
+        char confirm;
+        std::cin >> confirm;
+        if (confirm != 'y' && confirm != 'Y') {
+            std::cout << "操作取消\n";
+            return;
+        }
+        // 构建解除屏蔽请求
+        json req;
+        req["type"] = "disblock_user";
+        req["user"] = currentUser;
+        req["disblocked_user"] = blockName;
+        
+        // 发送请求
+        json res = sendRequest(req);
+        
+        if (res["success"]) {
+            std::cout << "✓ 用户已解除屏蔽\n";
+        } else {
+            std::cerr << "✘ 解除屏蔽失败: " << res["message"] << std::endl;
         }
     }
     void showFriends()

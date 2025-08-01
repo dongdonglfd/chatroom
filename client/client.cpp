@@ -1,5 +1,97 @@
 #include"friend.h"
 #include"group.h"
+string notifyaddress;
+std::atomic<bool> running(true);
+// 输出互斥锁，保护控制台输出
+std::mutex output_mutex;
+std::thread notification_thread;
+
+class NotificationClient
+{
+private:
+    int notificationsock = -1;
+    std::atomic<bool> connected_{false};
+    
+    // 通知队列
+    std::mutex queue_mutex_;
+    std::queue<json> notification_queue_;
+    
+    // 连接互斥锁
+    std::mutex connect_mutex_;
+public:
+// ~NotificationClient() {
+//         disconnect();
+//     }
+    
+    // 连接到通知服务器
+    bool connect(const std::string& server_ip, int port) {
+        
+        std::lock_guard<std::mutex> lock(connect_mutex_);
+        
+        if (connected_) {
+            return true; // 已经连接
+        }
+        
+        // 创建套接字
+        notificationsock = socket(AF_INET, SOCK_STREAM, 0);
+        if (notificationsock < 0) {
+            perror("socket创建失败");
+            return false;
+        }
+        
+        // 设置服务器地址
+        sockaddr_in server_addr{};
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(8081);
+        
+        if (inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr) <= 0) {
+            perror("地址转换失败");
+            close(notificationsock);
+            notificationsock = -1;
+            return false;
+        }
+        
+        // 连接服务器
+        if (::connect(notificationsock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            perror("连接失败");
+            close(notificationsock);
+            notificationsock = -1;
+            return false;
+        }
+        
+        // 设置为非阻塞
+        int flags = fcntl(notificationsock, F_GETFL, 0);
+        fcntl(notificationsock, F_SETFL, flags | O_NONBLOCK);
+        
+        connected_ = true;
+        return true;
+    }
+    
+    // 断开连接
+    void disconnect() {
+        std::lock_guard<std::mutex> lock(connect_mutex_);
+        
+        if (notificationsock != -1) {
+            close(notificationsock);
+            notificationsock = -1;
+        }
+        connected_ = false;
+    }
+    void processNotifications()
+    {
+        char buffer[4096];
+        ssize_t bytes_read = recv(notificationsock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+        
+        if (bytes_read > 0) {
+            buffer[bytes_read] = '\0';
+            cout<<"[通知]"<<buffer<<endl;
+        }
+        
+    }
+
+};
+NotificationClient notification;
+void notificationThread(const std::string& addr, int port) ;
 class Client :public Friend ,public Group
 {
 private:
@@ -202,6 +294,7 @@ public:
             exit(EXIT_FAILURE);
         }
         std::cout << "Connected to server " << server_addr << ":" << port << std::endl;
+        notification_thread=thread(notificationThread, notifyaddress, 8081);
     }
 
     void sendMessage(const std::string& message) 
@@ -238,6 +331,7 @@ public:
             switch (choice) {
                 case '1':
                     if (processLogin()) {
+                        
                         showMainInterface();
                     }
                     break;
@@ -248,7 +342,8 @@ public:
                     handleForgotPassword();    
                 case '4':
                     close(sockfd);
-                    exit(0);
+                    return ;
+                    //exit(0);
                 default:
                     std::cerr << "无效选项，请重新输入!\n";
             }
@@ -319,25 +414,68 @@ public:
             switch(choice) {
                 case '1': friendMenu(sockfd,current_user); break;
                 case '2': groupMenu(sockfd,current_user); break;
-                // case '3': chatMenu(); break;
                 case '3': return;break;
                 default: std::cout << "无效输入!\n";
             }
         }
     }
 };
+
+// 通知客户端实例
+
+void notificationThread(const std::string& addr, int port) 
+{
+    try {
+        // 连接到通知服务器
+        if (!notification.connect(addr, port)) {
+            std::cerr << "无法连接到通知服务器" << std::endl;
+            return;
+        }
+        
+        // 线程启动消息
+        {
+            std::lock_guard<std::mutex> lock(output_mutex);
+            std::cout << "通知接收线程启动" << std::endl;
+        }
+        
+        // 主循环
+        while (running) {
+            // 处理通知
+            notification.processNotifications();
+            
+            // 短暂休眠避免过度占用CPU
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // 断开连接
+        notification.disconnect();
+        
+        // 线程退出消息
+        {
+            std::lock_guard<std::mutex> lock(output_mutex);
+            std::cout << "通知接收线程退出" << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::lock_guard<std::mutex> lock(output_mutex);
+        std::cerr << "通知线程异常: " << e.what() << std::endl;
+    }
+}
 int main(int argc,char **argv)
 {
     std::string addr="127.0.0.1";
     address="127.0.0.1";
     addressfile="127.0.0.1";
+    notifyaddress="127.0.0.1";
     int port=0;
     port=PORT;
+
     if(argc >= 2)
     {
         addr=argv[1];
         address=argv[1];
         addressfile=argv[1];
+        notifyaddress=argv[1];
+
     }
     if(argc >= 3)
     {
@@ -345,6 +483,7 @@ int main(int argc,char **argv)
     }
     Client client(addr,port);
     client.work();
+    notification_thread.join();
     return 0;
     
 }
