@@ -1,10 +1,6 @@
 
 #include"groupserver.h"
 
-
-
-
-
 class ChatServer :public Friendserver,public groupserver
 {
 private:
@@ -19,11 +15,15 @@ private:
 
     // 处理客户端请求
     void handleClient(int client_fd) {
-         char buffer[4096];
+        NotificationService notify(8081);
+        sockaddr_in client_addr{};
+        socklen_t addr_len = sizeof(client_addr);
+        int noti = accept(notify.notifysock,(sockaddr*)&client_addr, &addr_len);
+        char buffer[4096];
         ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
         if(bytes_read > 0 )
         {cout<<"22222222222"<<endl;
-        cout<<buffer<<endl;
+         cout<<buffer<<endl;
         
             // json re = json::parse(string(buffer, bytes_read));
             // string type = re["type"];
@@ -57,7 +57,7 @@ private:
             }else if(type == "send_code") {
                 handleForgotPassword(client_fd, req);
             }else if(type=="add_friend"){
-                handleAddFriend(client_fd, req);
+                handleAddFriend(client_fd, req,noti);
             }else if (type == "check_requests") {
                 handleCheckRequests(client_fd, req);
             }else if (type == "process_request") {
@@ -68,6 +68,8 @@ private:
                 handleDeleteFriend(client_fd, req);
             }else if(type=="block_user"){
                 handleBlockUser(client_fd, req);
+            }else if(type=="disblock_user"){
+                handledisBlockUser(client_fd, req);
             }else if(type=="create_group"){
                 handleCreateGroup(client_fd, req);
             }else if(type=="disband_group"){

@@ -34,7 +34,7 @@ public:
     //     std::lock_guard<std::mutex> lock(online_mutex);
     //     online_users[username] = socket;
     // }
-    void handleAddFriend(int fd, const json& req) 
+    void handleAddFriend(int fd, const json& req,int noti) 
     {
         string requester = req["from"];
         string target = req["to"];
@@ -128,6 +128,12 @@ public:
             if (online_users.find(target) != online_users.end()) {
                 is_online = true;
                 // 实际实现中，这里应该发送通知给目标用户
+                string buf="有用户添加请求";
+                send(noti,&buf,buf.size(),0);
+
+            }
+            else{
+                
             }
         }
 
@@ -290,6 +296,38 @@ public:
         stmt->setString(1, user);
         stmt->setString(2, blockedUser);
         
+        stmt->executeUpdate();
+        
+        json response = {{"success", true}, 
+                         {"message", "用户已屏蔽"}};
+        send(fd, response.dump().c_str(), response.dump().size(), 0);
+        
+        } catch (sql::SQLException &e) {
+            json response = {{"success", false}, 
+                            {"message", "数据库错误: " + string(e.what())}};
+            send(fd, response.dump().c_str(), response.dump().size(), 0);
+        }
+
+    }
+    void handledisBlockUser(int fd, const json& req)
+    {
+        string user = req["user"];
+        string blockedUser = req["disblocked_user"];
+    
+        unique_ptr<sql::Connection> con(getDBConnection());
+        try {
+        // 解除屏蔽关系
+        unique_ptr<sql::PreparedStatement> stmt(
+            con->prepareStatement(
+                "DELETE from blocks "
+                "where (user=? AND blocked_user = ?) "
+                "or (user=? AND blocked_user = ?) "
+            )
+        );
+        stmt->setString(1, user);
+        stmt->setString(2, blockedUser);
+        stmt->setString(3, blockedUser);
+        stmt->setString(4, user);
         stmt->executeUpdate();
         
         json response = {{"success", true}, 

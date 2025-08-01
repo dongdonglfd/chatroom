@@ -113,10 +113,21 @@ class groupserver: public groupchat
             send(fd, response.dump().c_str(), response.dump().size(), 0);
             return;
         }
+         // 删除群组（级联删除成员和消息）
+        unique_ptr<sql::PreparedStatement> del(
+            con->prepareStatement(
+                "DELETE FROM group_messages WHERE group_id = ?"
+                )
+        );
+        del->setInt(1, groupId);
+        del->executeUpdate();
         
         // 删除群组（级联删除成员和消息）
         unique_ptr<sql::PreparedStatement> delStmt(
-            con->prepareStatement("DELETE FROM `groups` WHERE id = ?")
+            con->prepareStatement(
+                "DELETE FROM `groups` WHERE id = ?"
+                
+                )
         );
         delStmt->setInt(1, groupId);
         int affected = delStmt->executeUpdate();

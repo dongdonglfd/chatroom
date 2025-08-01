@@ -23,7 +23,7 @@ set(SERVER_HEADERS
     groupfileserver.h
     groupserver.h
     threadpool.h
-
+    notification.h
     )
 set(SERVER_SOURCES
     server.cpp
