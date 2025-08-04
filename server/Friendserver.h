@@ -34,7 +34,7 @@ public:
     //     std::lock_guard<std::mutex> lock(online_mutex);
     //     online_users[username] = socket;
     // }
-    void handleAddFriend(int fd, const json& req,int noti) 
+    void handleAddFriend(int fd, const json& req) 
     {
         string requester = req["from"];
         string target = req["to"];
@@ -128,14 +128,17 @@ public:
             if (online_users.find(target) != online_users.end()) {
                 is_online = true;
                 // 实际实现中，这里应该发送通知给目标用户
-                string buf="有用户添加请求";
-                send(noti,&buf,buf.size(),0);
 
             }
-            else{
-                
-            }
         }
+        json notification = {
+            {"type", "friend_request"},
+            {"requester", requester},
+            {"message", requester + " 请求添加您为好友"}
+        };
+    
+    // 添加通知
+    addNotification(target, notification);
 
         json response = {{"success", true}, {"online", is_online}};
         send(fd, response.dump().c_str(), response.dump().size(), 0);

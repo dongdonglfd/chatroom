@@ -26,41 +26,63 @@
 #include <sstream>
 #include <openssl/buffer.h>
 #include <sys/stat.h>
-class NotificationService
-{
-    public:
-    int notifysock;
-    std::mutex notifymutex;
-    public:
-    NotificationService(int port){
-        std::lock_guard<std::mutex> lock(notifymutex);
+using json = nlohmann::json;
+using namespace std;
+
+
+// 全局通知存储
+std::mutex notifications_mutex;
+std::unordered_map<std::string, std::vector<json>> user_notifications;
+void sendLengthPrefixed(int fd, const json& response) {
+    std::string responseStr = response.dump();
+    uint32_t len = htonl(responseStr.size());
+    send(fd, &len, sizeof(len), 0);
+    send(fd, responseStr.c_str(), responseStr.size(), 0);
+}
+void handlePollNotifications(const json& request,int client_sock) {
+    
+    std::string username = request["username"];
+    
+    json response;
+    response["type"] = "poll_notifications_response";
+    
+    // 获取并清空用户通知
+    std::vector<json> notifications;
+    {
+        std::lock_guard<std::mutex> lock(notifications_mutex);
         
-        // 创建数据监听socket
-        notifysock = socket(AF_INET, SOCK_STREAM, 0);
-        if(notifysock < 0) {
-            return ;
+        if (user_notifications.find(username) != user_notifications.end()) {
+            notifications = user_notifications[username];
+            user_notifications[username].clear();
         }
-
-        
-        sockaddr_in data_addr{};
-        data_addr.sin_family = AF_INET;
-        data_addr.sin_addr.s_addr = INADDR_ANY;
-        data_addr.sin_port = htons(8081); 
-
-        if(bind(notifysock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
-        
-            close(notifysock);
-            notifysock = -1;
-            return ;
-        }
-
-        // 开始监听
-        if(listen(notifysock, 1) < 0) {
-          
-            close(notifysock);
-            notifysock = -1;
-            return ;
-        }
-
     }
-};
+    
+    if (notifications.empty()) {
+        response["success"] = true;
+        response["message"] = "没有新通知";
+    } else {
+        response["success"] = true;
+        response["notifications"] = notifications;
+    }
+    
+    // 发送响应
+    // std::string response_str = response.dump();
+    // send(client_sock, response_str.c_str(), response_str.size(), 0);
+    sendLengthPrefixed(client_sock,response);
+}
+void addNotification(const std::string& username, const json& notification) 
+{
+    cout<<"notify"<<endl;
+    std::lock_guard<std::mutex> lock(notifications_mutex);
+    
+    // 确保用户通知队列存在
+    if (user_notifications.find(username) == user_notifications.end()) {
+        user_notifications[username] = std::vector<json>();
+    }
+    
+    // 添加时间戳
+    // json notif_with_timestamp = notification;
+    //notif_with_timestamp["timestamp"] = static_cast<uint64_t>(time(nullptr));
+    
+    user_notifications[username].push_back(notification);
+}

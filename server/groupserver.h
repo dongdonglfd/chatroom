@@ -317,6 +317,30 @@ class groupserver: public groupchat
         insertStmt->executeUpdate();
         response["success"] = true;
         response["message"] = "加群请求已发送";
+        //获取管理员列表
+            unique_ptr<sql::PreparedStatement> adminStmt(
+                con->prepareStatement(
+                    "SELECT user "
+                    "FROM group_members "
+                    "WHERE group_id = ? AND (role = 'owner' OR role = 'admin')"
+                )
+            );
+            adminStmt->setInt(1, groupId);
+            unique_ptr<sql::ResultSet> adminRes(adminStmt->executeQuery());
+            json adminArr = json::array();
+            while (adminRes->next()) {
+                adminArr.push_back(adminRes->getString("user"));
+            }
+            json notification = {
+                {"type", "group_join_request"},
+                {"applicant", user},
+                {"group_id", groupId},
+            };
+            for (const string& member : adminArr)
+            {
+                addNotification(member, notification);
+            } 
+            
         send(fd, response.dump().c_str(), response.dump().size(), 0);
     }
     void handleGetGroupJoinRequests(int fd, const json& req) 

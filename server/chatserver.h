@@ -46,6 +46,12 @@ struct Message {
     bool delivered = false;
 };
  unordered_map<string, int> online_users; // 在线用户表
+//  void sendLengthPrefixed(int fd, const json& response) {
+//     std::string responseStr = response.dump();
+//     uint32_t len = htonl(responseStr.size());
+//     send(fd, &len, sizeof(len), 0);
+//     send(fd, responseStr.c_str(), responseStr.size(), 0);
+// }
 class Chat
 {
     public:
@@ -117,6 +123,7 @@ class Chat
             unique_ptr<sql::ResultSet> Res(Stmt->executeQuery());
             if (!Res->next()) {
                 response["valid"] = 0;
+                response["type"] = "valid";
                 response["reason"] = "存在屏蔽关系";
                 response["success"] = true;
                 send(fd, response.dump().c_str(), response.dump().size(), 0);
@@ -137,6 +144,7 @@ class Chat
             unique_ptr<sql::ResultSet> blockRes(blockStmt->executeQuery());
             if (blockRes->next()) {
                 response["valid"] = 0;
+                response["type"] = "valid";
                 response["reason"] = "存在屏蔽关系";
                 response["success"] = true;
                 send(fd, response.dump().c_str(), response.dump().size(), 0);
@@ -146,6 +154,7 @@ class Chat
             // 所有检查通过
             response["valid"] = 1;
             response["reason"] = "有效好友";
+            response["type"] = "valid";
             response["success"] = true;
             
         } catch (sql::SQLException &e) {
@@ -153,7 +162,8 @@ class Chat
             response["message"] = "数据库错误: " + string(e.what());
         }
         
-        send(fd, response.dump().c_str(), response.dump().size(), 0);
+        //send(fd, response.dump().c_str(), response.dump().size(), 0);
+        sendLengthPrefixed(fd,response);
     }
     void handlePrivateMessage(int fd,const json& request)
     {
@@ -193,14 +203,25 @@ class Chat
             std::lock_guard<std::mutex> lock(online_users_mutex);
             auto it = online_users.find(msg.receiver);
             if (it != online_users.end()) {
+                cout<<"www"<<endl;
                 json realtime_msg;
                 realtime_msg["type"] = "private_message";
+                realtime_msg["success"]= false;
                 realtime_msg["message_id"] = msg.message_id;
                 realtime_msg["sender"] = msg.sender;
                 realtime_msg["message"] = msg.content;
                 realtime_msg["timestamp"] = msg.timestamp;
+                // string msg=realtime_msg.dump()+ "\n";
+                // // sendResponse(it->second, realtime_msg);
+                // send(it->second,msg.c_str(),msg.size(),0);
+                std::string responseStr = realtime_msg.dump();
+                uint32_t len = htonl(responseStr.size());
                 
-                sendResponse(it->second, realtime_msg);
+                // 先发送长度
+                send(it->second, &len, sizeof(len), 0);
+                // 再发送数据
+                send(it->second, responseStr.c_str(), responseStr.size(), 0);
+                //addNotification(msg.receiver,realtime_msg);
                 delivered = true;
             }
         }
@@ -390,8 +411,15 @@ class Chat
             response["messages"] = messagesArray;
         }
         
-        // 发送响应
-        string responseStr = response.dump();
+        // // 发送响应
+        // string responseStr = response.dump()+"\n";
+        // send(fd, responseStr.c_str(), responseStr.size(), 0);
+        std::string responseStr = response.dump();
+        uint32_t len = htonl(responseStr.size());
+        
+        // 先发送长度
+        send(fd, &len, sizeof(len), 0);
+        // 再发送数据
         send(fd, responseStr.c_str(), responseStr.size(), 0);
     }
     // void handleChatHistoryRequest(int fd, const json& request)

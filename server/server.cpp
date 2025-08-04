@@ -15,10 +15,6 @@ private:
 
     // 处理客户端请求
     void handleClient(int client_fd) {
-        NotificationService notify(8081);
-        sockaddr_in client_addr{};
-        socklen_t addr_len = sizeof(client_addr);
-        int noti = accept(notify.notifysock,(sockaddr*)&client_addr, &addr_len);
         char buffer[4096];
         ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
         if(bytes_read > 0 )
@@ -57,7 +53,7 @@ private:
             }else if(type == "send_code") {
                 handleForgotPassword(client_fd, req);
             }else if(type=="add_friend"){
-                handleAddFriend(client_fd, req,noti);
+                handleAddFriend(client_fd, req);
             }else if (type == "check_requests") {
                 handleCheckRequests(client_fd, req);
             }else if (type == "process_request") {
@@ -142,6 +138,8 @@ private:
                 groupfile.updategroupFileDeliveryStatus(req,client_fd);
             }else if(type=="download_groupfile"){
                 groupfile.groupfilesend(req,client_fd);
+            }else if(type == "poll_notifications"){
+                handlePollNotifications(req,client_fd);
             }
             
 
@@ -186,6 +184,19 @@ private:
     void handleLogin(int fd, const json& req) {
         string name = req["username"];
         string password = req["password"];
+        // 6. 检查目标用户是否在线
+       // 6. 检查目标用户是否在线
+        
+
+            // if (online_users.find(name) != online_users.end()) {
+                
+            //     json response;
+            //     response["success"] = false;
+            //     response["message"] = "用户已登录";
+            //     send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //     return ;
+
+            // }
 
         unique_ptr<Connection> con(mysql.getDBConnection());
         unique_ptr<PreparedStatement> stmt(
