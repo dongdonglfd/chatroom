@@ -126,7 +126,8 @@ class Chat
                 response["type"] = "valid";
                 response["reason"] = "存在屏蔽关系";
                 response["success"] = true;
-                send(fd, response.dump().c_str(), response.dump().size(), 0);
+                //send(fd, response.dump().c_str(), response.dump().size(), 0);
+                sendLengthPrefixed(fd,response);
                 return;
             }           
             unique_ptr<sql::PreparedStatement> blockStmt(
@@ -147,7 +148,8 @@ class Chat
                 response["type"] = "valid";
                 response["reason"] = "存在屏蔽关系";
                 response["success"] = true;
-                send(fd, response.dump().c_str(), response.dump().size(), 0);
+                //send(fd, response.dump().c_str(), response.dump().size(), 0);
+                sendLengthPrefixed(fd,response);
                 return;
             }
             
@@ -175,6 +177,22 @@ class Chat
         msg.message_id = time(nullptr) * 1000 + rand() % 1000; // 简单实现的消息ID
         
         unique_ptr<sql::Connection> con(getDBConnection());
+        unique_ptr<sql::PreparedStatement> blockStmt(
+                con->prepareStatement(
+                    "SELECT id FROM blocks "
+                    "WHERE (user = ? AND blocked_user = ?) OR "
+                    "(user = ? AND blocked_user = ?)"
+                )
+            );
+            blockStmt->setString(1, msg.sender);
+            blockStmt->setString(2, msg.receiver);
+            blockStmt->setString(3, msg.receiver);
+            blockStmt->setString(4, msg.sender);
+            
+            unique_ptr<sql::ResultSet> blockRes(blockStmt->executeQuery());
+            if (blockRes->next()) {
+                return;
+            }
        // 3. 存储消息
         unique_ptr<sql::PreparedStatement> msgStmt(
             con->prepareStatement(

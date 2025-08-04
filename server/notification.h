@@ -34,8 +34,10 @@ using namespace std;
 std::mutex notifications_mutex;
 std::unordered_map<std::string, std::vector<json>> user_notifications;
 void sendLengthPrefixed(int fd, const json& response) {
+    cout<<"length"<<endl;
     std::string responseStr = response.dump();
     uint32_t len = htonl(responseStr.size());
+    cout<<"lenlen="<<len<<endl;
     send(fd, &len, sizeof(len), 0);
     send(fd, responseStr.c_str(), responseStr.size(), 0);
 }
