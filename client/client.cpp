@@ -1,107 +1,111 @@
 #include"friend.h"
 #include"group.h"
-string notifyaddress;
-std::atomic<bool> running(true);
-// 输出互斥锁，保护控制台输出
-std::mutex output_mutex;
-std::thread notification_thread;
+// string notifyaddress;
+// std::mutex notification_mutex;
+// //std::mutex output_mutex;
+// std::queue<std::string> notification_queue;
+// std::condition_variable notification_cv;
 
-class NotificationClient
-{
-private:
-    int notificationsock = -1;
-    std::atomic<bool> connected_{false};
+// // 线程控制
+// std::atomic<bool> notification_thread_running(false);
+
+// int sockfd;
+// std::string current_user;
+// void processNotifications() {
+//     std::unique_lock<std::mutex> lock(notification_mutex);
     
-    // 通知队列
-    std::mutex queue_mutex_;
-    std::queue<json> notification_queue_;
-    
-    // 连接互斥锁
-    std::mutex connect_mutex_;
-public:
-// ~NotificationClient() {
-//         disconnect();
+//     while (!notification_queue.empty()) {
+//         std::string notification_str = notification_queue.front();
+//         notification_queue.pop();
+        
+//         try {
+//             json notification = json::parse(notification_str);
+//             std::string type = notification["type"];
+            
+//             if (type == "friend_request") {
+//                 std::string requester = notification["requester"];
+//                 std::cout << "\n[系统通知] 收到好友请求来自: " << requester << std::endl;
+//             } else if (type == "group_invite") {
+//                 std::string group_name = notification["group_name"];
+//                 std::string inviter = notification["inviter"];
+//                 std::cout << "\n[系统通知] 收到群组邀请: " << group_name << " 来自: " << inviter << std::endl;
+//             } else if (type == "new_message") {
+//                 std::string sender = notification["sender"];
+//                 std::string content = notification["content"];
+//                 std::cout << "\n[新消息] " << sender << ": " << content << std::endl;
+//             }
+            
+//             // 重新显示提示符
+//             // std::cout << "> " << std::flush;
+//         } catch (const json::parse_error& e) {
+//             std::cerr << "通知处理错误: " << e.what() << std::endl;
+//         }
 //     }
-    
-    // 连接到通知服务器
-    bool connect(const std::string& server_ip, int port) {
+// }
+// void notificationPollingThread()
+// {
+//     std::lock_guard<std::mutex> lock(output_mutex);
+//     const int POLL_INTERVAL = 2;     
+//     while (notification_thread_running) {
+//         // 构造轮询请求
+//         json request = {
+//             {"type", "poll_notifications"},
+//             {"username", current_user}
+//         };
         
-        std::lock_guard<std::mutex> lock(connect_mutex_);
+//         // 发送请求
+//         std::string request_str = request.dump();
+//         send(sockfd, request_str.c_str(), request_str.size(), 0);
         
-        if (connected_) {
-            return true; // 已经连接
-        }
+//         // 接收响应
+//         char buffer[4096];
+//         ssize_t bytes_read = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
         
-        // 创建套接字
-        notificationsock = socket(AF_INET, SOCK_STREAM, 0);
-        if (notificationsock < 0) {
-            perror("socket创建失败");
-            return false;
-        }
+//         if (bytes_read > 0) {
+//             buffer[bytes_read] = '\0';
+//             json response = json::parse(buffer);
+//             if (response["success"]) {
+//                     // 使用互斥锁保护整个输出块
+                    
+                    
+//                     for (const auto& notification : response["notifications"]) {
+//                         std::string type = notification["type"];
+                        
+//                         if (type == "friend_request") {
+//                             std::string requester = notification["requester"];
+//                             std::cout << "\n[系统通知] 收到好友请求来自: " << requester << std::endl;
+//                         } else if (type == "group_join_request") {
+//                             int group_name = notification["group_id"];
+//                             std::string inviter = notification["applicant"];
+//                             std::cout << "\n[系统通知] 收到群组申请消息: " <<"群号"<< group_name << " 来自: " << inviter << std::endl;
+//                         } 
+//                         // else if (type == "new_message") {
+//                         //     std::string sender = notification["sender"];
+//                         //     //std::string content = notification["content"];
+//                         //     std::cout << "\n[新消息] " << sender << std::endl;
+//                         // } 
+//                     }
+                    
+//                 }
+//         }
         
-        // 设置服务器地址
-        sockaddr_in server_addr{};
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(8081);
-        
-        if (inet_pton(AF_INET, server_ip.c_str(), &server_addr.sin_addr) <= 0) {
-            perror("地址转换失败");
-            close(notificationsock);
-            notificationsock = -1;
-            return false;
-        }
-        
-        // 连接服务器
-        if (::connect(notificationsock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-            perror("连接失败");
-            close(notificationsock);
-            notificationsock = -1;
-            return false;
-        }
-        
-        // 设置为非阻塞
-        int flags = fcntl(notificationsock, F_GETFL, 0);
-        fcntl(notificationsock, F_SETFL, flags | O_NONBLOCK);
-        
-        connected_ = true;
-        return true;
-    }
-    
-    // 断开连接
-    void disconnect() {
-        std::lock_guard<std::mutex> lock(connect_mutex_);
-        
-        if (notificationsock != -1) {
-            close(notificationsock);
-            notificationsock = -1;
-        }
-        connected_ = false;
-    }
-    void processNotifications()
-    {
-        char buffer[4096];
-        ssize_t bytes_read = recv(notificationsock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
-        
-        if (bytes_read > 0) {
-            buffer[bytes_read] = '\0';
-            cout<<"[通知]"<<buffer<<endl;
-        }
-        
-    }
+//         // 等待轮询间隔
+//         for (int i = 0; i < POLL_INTERVAL && notification_thread_running; i++) {
+//             std::this_thread::sleep_for(std::chrono::seconds(1));
+//         }
+//     }
+// }
 
-};
-NotificationClient notification;
-void notificationThread(const std::string& addr, int port) ;
 class Client :public Friend ,public Group
 {
 private:
-    int sockfd;
+    
     std::string server_addr;
     int port;
     struct sockaddr_in serv_addr;
     char buffer[BUFFER_SIZE];
     bool is_authenticated = false;
-    std::string current_user;
+    
 
     // 密码输入辅助函数
     std::string getPassword(const char* prompt) {
@@ -157,6 +161,8 @@ private:
             std::cout << "\n登录成功! 欢迎 " << username << std::endl;
             checkUnreadMessages(username,sockfd);
             checkgroupUnreadMessages(username,sockfd);
+            notification_thread_running = true;
+            notification_thread = std::thread(notificationPollingThread);
             return true;
         } else {
             std::cerr << "\n登录失败: " << result["message"] << std::endl;
@@ -294,7 +300,6 @@ public:
             exit(EXIT_FAILURE);
         }
         std::cout << "Connected to server " << server_addr << ":" << port << std::endl;
-        notification_thread=thread(notificationThread, notifyaddress, 8081);
     }
 
     void sendMessage(const std::string& message) 
@@ -321,20 +326,23 @@ public:
     {
         connectToServer();
         // 登录阶段
-        while (!is_authenticated) {
-            showLoginMenu();
+        while (true) {
             
+            showLoginMenu();
             char choice;
             std::cin >> choice;
-            std::cin.ignore(); // 清除输入缓冲
+            std::cin.ignore(); 
+            // 清除输入缓冲
 
             switch (choice) {
                 case '1':
                     if (processLogin()) {
                         
                         showMainInterface();
+                        break;
                     }
                     break;
+                    is_authenticated=true;
                 case '2':
                     processRegistration();
                     break;
@@ -342,61 +350,66 @@ public:
                     handleForgotPassword();    
                 case '4':
                     close(sockfd);
-                    return ;
-                    //exit(0);
+                    break;
+                    // exit(0);
                 default:
                     std::cerr << "无效选项，请重新输入!\n";
             }
+            if(choice == '4')
+            {
+               break;
+            }
         }
-        // 创建epoll实例
-        int epoll_fd = epoll_create1(0);
-        if (epoll_fd == -1) {
-            perror("epoll_create1");
-            exit(EXIT_FAILURE);
-        }
-
-        // 添加标准输入和socket到epoll
-        struct epoll_event ev, events[MAX_EVENTS];
         
-        // 监控标准输入
-        ev.events = EPOLLIN;
-        ev.data.fd = STDIN_FILENO;
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, STDIN_FILENO, &ev) == -1) {
-            perror("epoll_ctl: stdin");
-            exit(EXIT_FAILURE);
-        }
+        // 创建epoll实例
+        // int epoll_fd = epoll_create1(0);
+        // if (epoll_fd == -1) {
+        //     perror("epoll_create1");
+        //     exit(EXIT_FAILURE);
+        // }
 
-        // 监控服务器socket
-        ev.events = EPOLLIN;
-        ev.data.fd = sockfd;
-        if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
-            perror("epoll_ctl: sockfd");
-            exit(EXIT_FAILURE);
-        }
+        // // 添加标准输入和socket到epoll
+        // struct epoll_event ev, events[MAX_EVENTS];
+        
+        // // 监控标准输入
+        // ev.events = EPOLLIN;
+        // ev.data.fd = STDIN_FILENO;
+        // if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, STDIN_FILENO, &ev) == -1) {
+        //     perror("epoll_ctl: stdin");
+        //     exit(EXIT_FAILURE);
+        // }
 
-        // 主循环
-        while (true) {
-            int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-            if (nfds == -1) {
-                perror("epoll_wait");
-                exit(EXIT_FAILURE);
-            }
+        // // 监控服务器socket
+        // ev.events = EPOLLIN;
+        // ev.data.fd = sockfd;
+        // if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &ev) == -1) {
+        //     perror("epoll_ctl: sockfd");
+        //     exit(EXIT_FAILURE);
+        // }
 
-            for (int n = 0; n < nfds; ++n) {
-                if (events[n].data.fd == STDIN_FILENO) {
-                    // 处理用户输入
-                    std::string input;
-                    std::getline(std::cin, input);
-                    sendMessage(input);
-                } else if (events[n].data.fd == sockfd) {
-                    // 处理服务器消息
-                    std::string response = receiveMessage();
-                    std::cout << "Server response: " << response << std::endl;
-                }
-            }
-        }
+        // // 主循环
+        // while (true) {
+        //     int nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+        //     if (nfds == -1) {
+        //         perror("epoll_wait");
+        //         exit(EXIT_FAILURE);
+        //     }
 
-        close(sockfd);
+        //     for (int n = 0; n < nfds; ++n) {
+        //         if (events[n].data.fd == STDIN_FILENO) {
+        //             // 处理用户输入
+        //             std::string input;
+        //             std::getline(std::cin, input);
+        //             sendMessage(input);
+        //         } else if (events[n].data.fd == sockfd) {
+        //             // 处理服务器消息
+        //             std::string response = receiveMessage();
+        //             std::cout << "Server response: " << response << std::endl;
+        //         }
+        //     }
+        // }
+
+        // close(sockfd);
     }
     void showMainInterface() 
     {
@@ -410,11 +423,10 @@ public:
             
             char choice;
             std::cin >> choice;
-            
             switch(choice) {
                 case '1': friendMenu(sockfd,current_user); break;
                 case '2': groupMenu(sockfd,current_user); break;
-                case '3': return;break;
+                case '3': return;
                 default: std::cout << "无效输入!\n";
             }
         }
@@ -423,43 +435,6 @@ public:
 
 // 通知客户端实例
 
-void notificationThread(const std::string& addr, int port) 
-{
-    try {
-        // 连接到通知服务器
-        if (!notification.connect(addr, port)) {
-            std::cerr << "无法连接到通知服务器" << std::endl;
-            return;
-        }
-        
-        // 线程启动消息
-        {
-            std::lock_guard<std::mutex> lock(output_mutex);
-            std::cout << "通知接收线程启动" << std::endl;
-        }
-        
-        // 主循环
-        while (running) {
-            // 处理通知
-            notification.processNotifications();
-            
-            // 短暂休眠避免过度占用CPU
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        
-        // 断开连接
-        notification.disconnect();
-        
-        // 线程退出消息
-        {
-            std::lock_guard<std::mutex> lock(output_mutex);
-            std::cout << "通知接收线程退出" << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::lock_guard<std::mutex> lock(output_mutex);
-        std::cerr << "通知线程异常: " << e.what() << std::endl;
-    }
-}
 int main(int argc,char **argv)
 {
     std::string addr="127.0.0.1";
@@ -482,8 +457,7 @@ int main(int argc,char **argv)
         port=std::stoi(argv[2]);
     }
     Client client(addr,port);
-    client.work();
-    notification_thread.join();
+    client.work();    
     return 0;
     
 }
