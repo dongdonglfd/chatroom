@@ -156,7 +156,7 @@ void sendFile(int sockfd,string currentuser)
             return;
         }
 
-        
+    
         // 上传文件到服务器
         uploadFileToServer(filePath,sockfd);
 
@@ -384,6 +384,7 @@ void sendFile(int sockfd,string currentuser)
         ssize_t total = 0;
         cout<<"开始接收"<<endl;
         std::ofstream file(selectedFile.file_name, std::ios::binary);
+        cout<<"ofstream"<<endl;
         if(!file) {
             cout<<"fail"<<endl;
             return;
@@ -392,7 +393,6 @@ void sendFile(int sockfd,string currentuser)
             ssize_t bytes = recv(cfd, buffer, sizeof(buffer), 0);
             if (bytes < 0) {
                 if (errno == EINTR) continue; // 处理中断
-                cout<<"1234"<<endl;
                 perror("recv error");
                 break;
             }

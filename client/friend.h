@@ -202,7 +202,9 @@ class Friend
         req["user"] = currentUser;
 
         // 发送请求并获取响应
+        cout<<"111"<<endl;
         json res = sendRequest(req);
+        cout<<res.dump()<<endl;
 
         // 检查响应是否成功
         if (!res["success"]) {

@@ -72,7 +72,7 @@ std::string receiveLengthPrefixed() {
 void notificationPollingThread()
 {
     std::lock_guard<std::mutex> lock(output_mutex);
-    const int POLL_INTERVAL = 5;     
+    const int POLL_INTERVAL = 2;     
     while (notification_thread_running) {
         // 构造轮询请求
         json request = {
@@ -107,11 +107,11 @@ void notificationPollingThread()
                             std::string inviter = notification["applicant"];
                             std::cout << "\n[系统通知] 收到群组申请消息: " <<"群号"<< group_name << " 来自: " << inviter << std::endl;
                         } 
-                        // else if (type == "new_message") {
-                        //     std::string sender = notification["sender"];
-                        //     //std::string content = notification["content"];
-                        //     std::cout << "\n[新消息] " << sender << std::endl;
-                        // } 
+                        else if (type == "new_message") {
+                            std::string sender = notification["sender"];
+                            //std::string content = notification["content"];
+                            std::cout << "\n[新消息] " <<"来自"<<sender << std::endl;
+                        } 
                         /////////////////////////////////////
                     //     if (type == "private_message") 
                     // {
@@ -341,14 +341,13 @@ public:
             notification_thread.join();
         }
     }
-    cout<<"0"<<endl;
     if (!isValidFriend(friendName)) {
             std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
             return;
         }
-    cout<<"q"<<endl;
+    
     // 2. 启动接收消息线程
-    {
+    {   running=true;
         std::lock_guard<std::mutex> lock(thread_mutex);
         if (recvThread.joinable()) {
             recvThread.join(); // 确保之前的线程已结束
@@ -358,7 +357,6 @@ public:
     
         //检查好友关系和黑名单
         
-        cout<<"w"<<endl;
         // 设置终端为非阻塞模式
         
         //setNonBlockingTerminal();
@@ -378,33 +376,33 @@ public:
         }
         while (inChatSession) 
         {
-        // 读取整行输入
-        string inputLine = readLineNonBlocking();
-        
-        if (!inputLine.empty()) {
-            // 处理输入行
-            cout<<"input="<<inputLine<<endl;
-            if (inputLine == "/exit") {
-                break;
-            }
-            cout<<"\033[A"<< flush;
-            cout << "\r\033[2K" << "> " << flush;
-            // 发送消息
-            sendMessage(friendName, inputLine);
+            // 读取整行输入
+            string inputLine = readLineNonBlocking();
             
-            // 更新输入提示
-            cout << "\r\033[2K" << "> " << flush;
-        //     if (!isValidFriend(friendName)) {
-        //     std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
-        //     return;
-        // }
+            if (!inputLine.empty()) {
+                // 处理输入行
+                if (inputLine == "/exit") {
+                    break;
+                }
+                cout<<"\033[A"<< flush;
+                cout << "\r\033[2K" << "> " << flush;
+                // 发送消息
+                sendMessage(friendName, inputLine);
+                
+                // 更新输入提示
+                cout << "\r\033[2K" << "> " << flush;
+            //     if (!isValidFriend(friendName)) {
+            //     std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
+            //     return;
+            // }
+            }
+            // 短暂休眠避免过度占用CPU
+            this_thread::sleep_for(chrono::milliseconds(50));
         }
-        // 短暂休眠避免过度占用CPU
-        this_thread::sleep_for(chrono::milliseconds(50));
-    }
-      
+        
     
         // 退出聊天会话
+        running=false;
         inChatSession = false;
         activeRecipient = "";
         inputBuffer.clear();
@@ -414,8 +412,12 @@ public:
          // 12. 停止接收线程
     {
         std::lock_guard<std::mutex> lock(thread_mutex);
+        
+         cout<<"??"<<endl;
         if (recvThread.joinable()) {
             recvThread.join();
+            cout<<"?"<<endl;
+            //recvThread.detach();
         }
     }
     
@@ -464,7 +466,7 @@ public:
         }
     }
     void receiveMessages() 
-    {cout<<"11111"<<endl;
+    {
         char buffer[4096];
         
         while (running) {
@@ -484,7 +486,7 @@ public:
             // 接收数据
             std::vector<char> buffer(len);
             size_t totalReceived = 0;
-            cout<<"123"<<endl;
+            
             while (totalReceived < len) {
                 ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
                 if (n <= 0) {
@@ -499,7 +501,7 @@ public:
             }
             cout<<endl;
         json response= json::parse(string(buffer.data(), len));
-            cout<<"222"<<endl;
+            
             if (bytesRead > 0) {
                 //buffer[bytesRead] = '\0'; // 确保字符串正确终止
                 
@@ -799,7 +801,7 @@ public:
     }
     void displayUnreadMessagesFromFriend(const string& friendName)
     {
-        cout<<"123456789"<<endl;
+        
         json request = {
             {"type", "get_friend_unread_messages"},
             {"user", currentUser},
@@ -883,7 +885,7 @@ public:
                 {"friend", friendName}
             };
             sendRequest(ack);
-            cout<<"987654321"<<endl;
+            
     }
     
     void queryChatHistory(const string& friendName)
