@@ -1,5 +1,6 @@
 #include"friend.h"
 #include"group.h"
+#include<signal.h>
 // string notifyaddress;
 // std::mutex notification_mutex;
 // //std::mutex output_mutex;
@@ -426,7 +427,7 @@ public:
             switch(choice) {
                 case '1': friendMenu(sockfd,current_user); break;
                 case '2': groupMenu(sockfd,current_user); break;
-                case '3': return;
+                case '3': notification_thread.detach();return;
                 default: std::cout << "无效输入!\n";
             }
         }
@@ -437,6 +438,7 @@ public:
 
 int main(int argc,char **argv)
 {
+    signal(SIGPIPE, SIG_IGN);
     std::string addr="127.0.0.1";
     address="127.0.0.1";
     addressfile="127.0.0.1";

@@ -165,7 +165,7 @@ void notificationPollingThread()
         
         // 等待轮询间隔
         for (int i = 0; i < POLL_INTERVAL && notification_thread_running; i++) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 }
@@ -336,12 +336,17 @@ public:
          // 1. 安全地停止通知线程
     {
         std::lock_guard<std::mutex> lock(thread_mutex);
-        //if (notification_thread.joinable()) {
+        if (notification_thread.joinable()) {
             notification_thread_running = false;
-            notification_thread.detach();
-        //}
+            notification_thread.join();
+        }
     }
-    
+    cout<<"0"<<endl;
+    if (!isValidFriend(friendName)) {
+            std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
+            return;
+        }
+    cout<<"q"<<endl;
     // 2. 启动接收消息线程
     {
         std::lock_guard<std::mutex> lock(thread_mutex);
@@ -350,12 +355,9 @@ public:
         }
         recvThread = std::thread([this]() { receiveMessages(); });
     }
-    cout<<"0"<<endl;
-        // 检查好友关系和黑名单
-        // if (!isValidFriend(friendName)) {
-        //     std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
-        //     return;
-        // }
+    
+        //检查好友关系和黑名单
+        
         cout<<"w"<<endl;
         // 设置终端为非阻塞模式
         
@@ -381,6 +383,7 @@ public:
         
         if (!inputLine.empty()) {
             // 处理输入行
+            cout<<"input="<<inputLine<<endl;
             if (inputLine == "/exit") {
                 break;
             }
@@ -489,7 +492,7 @@ public:
                 }
                 totalReceived += n;
             }
-            cout<<"buffer"<<endl;
+            cout<<"receive="<<endl;
             for(auto & ch:buffer)
             {
                 cout<<ch;
@@ -736,8 +739,10 @@ public:
         }
         
     }
+    std::mutex valid;
     int isValidFriend(const std::string& friendName) 
     {
+        //lock_guard<mutex>lock(valid) ;
         if (friendName == currentUser) {
             return 0;
         }
@@ -752,9 +757,10 @@ public:
         send(sock, requestStr.c_str(), requestStr.size(), 0);
         uint32_t len;
             ssize_t bytesRead = recv(sock, &len, sizeof(len), MSG_WAITALL);
-            // if (bytesRead != sizeof(len)) {
-            //     throw std::runtime_error("接收长度失败");
-            // }
+            cout<<"lenlen="<<len<<endl;
+            if (bytesRead != sizeof(len)) {
+                throw std::runtime_error("接收长度失败");
+            }
             
             len = ntohl(len);
             
@@ -776,6 +782,11 @@ public:
             }
             cout<<endl;
         json res= json::parse(string(buffer.data(), len));
+        // char buffer[4096] = {0};
+        // recv(sock, buffer, 4096, 0);
+        // json res= json::parse(buffer);
+
+
         int isValid = 0;
         if (res["success"]) {
             isValid = res["valid"];
