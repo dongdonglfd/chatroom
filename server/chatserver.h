@@ -234,12 +234,15 @@ class Chat
                 // send(it->second,msg.c_str(),msg.size(),0);
                 std::string responseStr = realtime_msg.dump();
                 uint32_t len = htonl(responseStr.size());
-                
+                json notification;
+                notification["type"]="new_message";
+                notification["sender"]=msg.sender;
+                addNotification(msg.receiver,notification);
                 // 先发送长度
                 send(it->second, &len, sizeof(len), 0);
                 // 再发送数据
                 send(it->second, responseStr.c_str(), responseStr.size(), 0);
-                //addNotification(msg.receiver,realtime_msg);
+                
                 delivered = true;
             }
         }

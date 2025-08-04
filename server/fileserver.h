@@ -12,14 +12,55 @@ struct FileSession {
 };
 // 全局会话映射
 mutex sessionMutex;
+mutex data_mutex;
+    int data_sock=-1;
+    int listen_sock=-1;
 //unordered_map<string, FileSession> fileSessions; // file_path -> session
+uint16_t pasv()
+    {
+        std::lock_guard<std::mutex> lock(data_mutex);
+        // if (listen_sock >= 0) {
+        //     close(listen_sock);
+        //     listen_sock = -1;
+        // }
+        // 创建数据监听socket
+        listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+        if(listen_sock < 0) {
+            return 0;
+        }
+
+        
+        sockaddr_in data_addr{};
+        data_addr.sin_family = AF_INET;
+        data_addr.sin_addr.s_addr = INADDR_ANY;
+        data_addr.sin_port = htons(8090); 
+
+        if(bind(listen_sock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
+        
+            close(listen_sock);
+            listen_sock = -1;
+            return 0;
+        }
+
+        // 开始监听
+        if(listen(listen_sock, 1) < 0) {
+          
+            close(listen_sock);
+            listen_sock = -1;
+            return 0;
+        }
+        // 获取绑定的端口号
+        socklen_t addr_len = sizeof(data_addr);
+        getsockname(listen_sock, (sockaddr*)&data_addr, &addr_len);//getsockname 可以用于获取绑定到套接字的实际地址和端口。
+        uint16_t port = ntohs(data_addr.sin_port);// 获取端口号（网络字节序转主机字节序）
+        return port;
+        
+    }
 class FileTransferServer
 {
 private:
     mutex uploadMutex;
-    mutex data_mutex;
-    int data_sock=-1;
-    int listen_sock;
+    
     
     void sendResponse(int fd, const json& response) {
         string responseStr = response.dump();
@@ -90,43 +131,46 @@ public:
         stmt->executeUpdate();
 
     }
-    uint16_t pasv()
-    {
-        std::lock_guard<std::mutex> lock(data_mutex);
-        
-        // 创建数据监听socket
-        listen_sock = socket(AF_INET, SOCK_STREAM, 0);
-        if(listen_sock < 0) {
-            return 0;
-        }
+    // uint16_t pasv()
+    // {
+    //     std::lock_guard<std::mutex> lock(data_mutex);
+    //     if (listen_sock >= 0) {
+    //         close(listen_sock);
+    //         listen_sock = -1;
+    //     }
+    //     // 创建数据监听socket
+    //     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+    //     if(listen_sock < 0) {
+    //         return 0;
+    //     }
 
         
-        sockaddr_in data_addr{};
-        data_addr.sin_family = AF_INET;
-        data_addr.sin_addr.s_addr = INADDR_ANY;
-        data_addr.sin_port = htons(8090); 
+    //     sockaddr_in data_addr{};
+    //     data_addr.sin_family = AF_INET;
+    //     data_addr.sin_addr.s_addr = INADDR_ANY;
+    //     data_addr.sin_port = htons(8090); 
 
-        if(bind(listen_sock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
+    //     if(bind(listen_sock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
         
-            close(listen_sock);
-            listen_sock = -1;
-            return 0;
-        }
+    //         close(listen_sock);
+    //         listen_sock = -1;
+    //         return 0;
+    //     }
 
-        // 开始监听
-        if(listen(listen_sock, 1) < 0) {
+    //     // 开始监听
+    //     if(listen(listen_sock, 1) < 0) {
           
-            close(listen_sock);
-            listen_sock = -1;
-            return 0;
-        }
-        // 获取绑定的端口号
-        socklen_t addr_len = sizeof(data_addr);
-        getsockname(listen_sock, (sockaddr*)&data_addr, &addr_len);//getsockname 可以用于获取绑定到套接字的实际地址和端口。
-        uint16_t port = ntohs(data_addr.sin_port);// 获取端口号（网络字节序转主机字节序）
-        return port;
+    //         close(listen_sock);
+    //         listen_sock = -1;
+    //         return 0;
+    //     }
+    //     // 获取绑定的端口号
+    //     socklen_t addr_len = sizeof(data_addr);
+    //     getsockname(listen_sock, (sockaddr*)&data_addr, &addr_len);//getsockname 可以用于获取绑定到套接字的实际地址和端口。
+    //     uint16_t port = ntohs(data_addr.sin_port);// 获取端口号（网络字节序转主机字节序）
+    //     return port;
         
-    }
+    // }
     void handleFileStart(json& data, int client_sock) 
     {
         std::lock_guard<std::mutex> lock(sessionMutex);
@@ -143,7 +187,7 @@ public:
             return;
         }
         //uint16_t port=pasv();
-        pasv();
+        //pasv();
         json req;
         req["success"]=true;
         //req["port"]=port;
@@ -179,8 +223,16 @@ public:
             file.flush(); // 确保写入磁盘
         }
         cout<<"传输完成"<<endl;
-        close(listen_sock);
-        data_sock=-1;
+        if (data_sock >= 0) {
+            close(data_sock);
+            data_sock = -1;
+        }
+        
+        // if (listen_sock >= 0) {
+        //     close(listen_sock);
+        //     listen_sock = -1;
+        // }
+        
         //setNonBlocking(client_sock);
     //handleFileData(client_sock, filepath);
     //transfrom(client_sock,file);
@@ -268,7 +320,7 @@ public:
     {
         string filename=data["filename"];
         string path="/home/lfd/3/"+filename;
-        pasv();
+        //pasv();
         json response = {
             {"success", true}
         };   
@@ -303,6 +355,15 @@ public:
             }
         }
         std::cout << "发送完成: "<< " (" << total << " bytes)" << std::endl;
+        if (data_sock >= 0) {
+            close(data_sock);
+            data_sock = -1;
+        }
+        
+        // if (listen_sock >= 0) {
+        //     close(listen_sock);
+        //     listen_sock = -1;
+        // }
         
     }
     void updateFileDeliveryStatus(json& data, int client_sock)

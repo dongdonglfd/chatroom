@@ -457,6 +457,7 @@ int main(int argc, char* argv[]) {
 
     ChatServer server(atoi(argv[1]));
     //ChatServer server(8080);
+    pasv();
     server.run();
     return 0;
 }
