@@ -9,7 +9,7 @@
 #include <termios.h> // 密码输入处理
 #include <iomanip>
 #include <nlohmann/json.hpp>
-#include </usr/include/x86_64-linux-gnu/curl/curl.h>
+#include <curl/curl.h>
 #include<vector>
 #include <map>
 #include <algorithm>
