@@ -73,20 +73,23 @@ public:
             {"group_id", groupid},
             {"sender", sender},
             {"message", message},
-            {"timestamp", timestamp}
+            {"timestamp", timestamp},
+            {"success",false}
         };
+        cout<<broadcast.dump()<<endl;
         broadcastToGroup(groupid, broadcast, sender);
-        json response = {
-            {"type", "group_message_ack"},
-            {"success", true},
-            {"group_id", groupid},
-            {"timestamp", timestamp}
-        };
-        sendRequest(response);
+        // json response = {
+        //     {"type", "group_message_ack"},
+        //     {"success", true},
+        //     {"group_id", groupid},
+        //     {"timestamp", timestamp}
+        // };
+        // //sendRequest(response);
+        // sendLengthPrefixed(client_sock,response);
 
 
     }
-    void broadcastToGroup(int group_id, const json& message, const string& excludeUser = "")
+    void broadcastToGroup(int group_id, const json& message, const string& excludeUser)
     {   
         lock_guard<mutex> lock(groupMutex);
         unique_ptr<sql::Connection> con(getDBConnection());
@@ -142,9 +145,13 @@ public:
             }
             
             if (isOnline) {
-                cout<<"987"<<endl;
                 // 用户在线，直接发送
-                sendResponse(fd, message);
+                //sendResponse(fd, message);
+                json notification;
+                notification["type"]="new_groupmessage";
+                notification["groupid"]=group_id;
+                addNotification(member,notification);
+                sendLengthPrefixed(fd,message);
             } else {
                 // 用户离线，存储消息
                 storeOfflineMessage(member, group_id, message);
@@ -174,7 +181,7 @@ public:
     }
     void checkgroupUnreadMessages(int fd, const json& req)
     {
-
+cout<<"123"<<endl;
         // 确保请求包含用户字段
         if (!req.contains("user") || !req["user"].is_string()) {
             json errorResponse = {
@@ -263,11 +270,12 @@ public:
             cout << "发送响应: " << responseStr << endl;
 
             // 发送响应给客户端
-            if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
-                cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
-            } else {
-                cout << "已发送未读消息给用户 " << username << endl;
-            }
+            // if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
+            //     cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
+            // } else {
+            //     cout << "已发送未读消息给用户 " << username << endl;
+            // }
+            sendLengthPrefixed(fd,response);
             
         } catch (sql::SQLException &e) {
             // 数据库错误处理
@@ -347,7 +355,8 @@ public:
         }
         
         response["messages"] = messages;
-        sendResponse(client_sock, response);
+        //sendResponse(client_sock, response);
+        sendLengthPrefixed(client_sock, response);
         
         } catch (const sql::SQLException& e) {
             json errorResponse = {

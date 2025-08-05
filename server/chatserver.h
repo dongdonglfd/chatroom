@@ -352,17 +352,24 @@ class Chat
             // response["success"] = true;
             // response["messages"] = messagesArray; 
             // 序列化响应为JSON字符串
-            string responseStr = response.dump();
+           // string responseStr = response.dump();
             
             // 添加调试输出
-            cout << "发送响应: " << responseStr << endl;
+            //cout << "发送响应: " << responseStr << endl;
 
             // 发送响应给客户端
-            if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
-                cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
-            } else {
-                cout << "已发送未读消息给用户 " << username << endl;
-            }
+            // if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
+            //     cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
+            // } else {
+            //     cout << "已发送未读消息给用户 " << username << endl;
+            // }
+            std::string responseStr = response.dump();
+            uint32_t len = htonl(responseStr.size());
+            
+            // 先发送长度
+            send(fd, &len, sizeof(len), 0);
+            // 再发送数据
+            send(fd, responseStr.c_str(), responseStr.size(), 0);
             
         } catch (sql::SQLException &e) {
             // 数据库错误处理

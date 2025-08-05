@@ -4,8 +4,7 @@ class groupfileserver
     mutex uploadMutex;
     mutex groupmutex;
     mutex data_mutex;
-    int data_sock=-1;
-    int listen_sock=-1;
+    
     FileTransferServer fileserver;
     void sendResponse(int fd, const json& response) {
         string responseStr = response.dump();
@@ -112,45 +111,45 @@ public:
             
         sendResponse(fd, response);
     }
-    uint16_t pasv()
-    {
-        std::lock_guard<std::mutex> lock(data_mutex);
+    // uint16_t pasv()
+    // {
+    //     std::lock_guard<std::mutex> lock(data_mutex);
         
-        // 创建数据监听socket
-        listen_sock = socket(AF_INET, SOCK_STREAM, 0);
-        if(listen_sock < 0) {
-            perror("socket failed");
-            return 0;
-        }
+    //     // 创建数据监听socket
+    //     listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+    //     if(listen_sock < 0) {
+    //         perror("socket failed");
+    //         return 0;
+    //     }
 
         
-        sockaddr_in data_addr{};
-        data_addr.sin_family = AF_INET;
-        data_addr.sin_addr.s_addr = INADDR_ANY;
-        // data_addr.sin_port = htons(8090);
-        data_addr.sin_port = 0; 
+    //     sockaddr_in data_addr{};
+    //     data_addr.sin_family = AF_INET;
+    //     data_addr.sin_addr.s_addr = INADDR_ANY;
+    //     // data_addr.sin_port = htons(8090);
+    //     data_addr.sin_port = 0; 
 
-        if(bind(listen_sock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
-            perror("bind failed");
-            close(listen_sock);
-            listen_sock = -1;
-            return 0;
-        }
+    //     if(bind(listen_sock, (sockaddr*)&data_addr, sizeof(data_addr)) < 0) {
+    //         perror("bind failed");
+    //         close(listen_sock);
+    //         listen_sock = -1;
+    //         return 0;
+    //     }
 
-        // 开始监听
-        if(listen(listen_sock, 1) < 0) {
-            perror("listen failed");
-            close(listen_sock);
-            listen_sock = -1;
-            return 0;
-        }
-        // 获取绑定的端口号
-        socklen_t addr_len = sizeof(data_addr);
-        getsockname(listen_sock, (sockaddr*)&data_addr, &addr_len);//getsockname 可以用于获取绑定到套接字的实际地址和端口。
-        uint16_t port = ntohs(data_addr.sin_port);// 获取端口号（网络字节序转主机字节序）
-        return port;
+    //     // 开始监听
+    //     if(listen(listen_sock, 1) < 0) {
+    //         perror("listen failed");
+    //         close(listen_sock);
+    //         listen_sock = -1;
+    //         return 0;
+    //     }
+    //     // 获取绑定的端口号
+    //     socklen_t addr_len = sizeof(data_addr);
+    //     getsockname(listen_sock, (sockaddr*)&data_addr, &addr_len);//getsockname 可以用于获取绑定到套接字的实际地址和端口。
+    //     uint16_t port = ntohs(data_addr.sin_port);// 获取端口号（网络字节序转主机字节序）
+    //     return port;
         
-    }
+    // }
     void handlegroupFileStart(json& data, int client_sock) 
     {
         std::lock_guard<std::mutex> lock(groupmutex);
@@ -164,39 +163,43 @@ public:
             return;
         }
         //uint16_t port=pasv();
-        uint16_t port=pasv();
-        cout<<"port = "<<port<<endl;
-        if (port == 0) {
-        json req = {{"success", false}, {"error", "PASV失败"}};
-        string str = req.dump()+"\n";
-        send(client_sock, str.c_str(), str.size(), 0);
-        return;
-    }
+        ///uint16_t port=pasv();
+        //cout<<"port = "<<port<<endl;
+        //if (port == 0) {
+        //json req = {{"success", false}, {"error", "PASV失败"}};
+    //     string str = req.dump()+"\n";
+    //     send(client_sock, str.c_str(), str.size(), 0);
+    //     return;
+    // }
     
-        // 发送响应（包含端口号）
-        json req = {
-            {"success", true},
-            {"port", port} // 必须发送端口号给客户端
-        };
-        string str = req.dump()+"\n";
-        send(client_sock, str.c_str(), str.size(), 0);
+        // // 发送响应（包含端口号）
+        // json req = {
+        //     {"success", true},
+        //     {"port", port} // 必须发送端口号给客户端
+        // };
+        // string str = req.dump()+"\n";
+        // send(client_sock, str.c_str(), str.size(), 0);
         // json req;
         // req["success"]=true;
         // //req["port"]=port;
         // string str=req.dump();
         // send(client_sock,str.c_str(),str.size(),0);
-        
-        cout << "开始接收文件: " << filepath  << endl;
+        json req;
+        req["success"]=true;
+        string str=req.dump();
+        send(client_sock,str.c_str(),str.size(),0);
+        cout << "开始接收文件: " << filepath  <<fileSize<< endl;
         sockaddr_in client_addr{};
         socklen_t addr_len = sizeof(client_addr);
-        data_sock = accept(listen_sock, 
+        int datasock = accept(listen_sock, 
                       (sockaddr*)&client_addr, &addr_len);
         char buffer[4096];
         ssize_t total = 0;
         
-        
+        cout<<"datasock="<<datasock<<endl;
+        cout<<"listensock="<<listen_sock<<endl;
         while (fileSize>total) {
-            ssize_t bytes = recv(data_sock, buffer, sizeof(buffer), 0);
+            ssize_t bytes = recv(datasock, buffer, sizeof(buffer), 0);
             if (bytes < 0) {
                 if (errno == EINTR) continue; // 处理中断
                 cout<<"1234"<<endl;
@@ -214,11 +217,11 @@ public:
             
             file.flush(); // 确保写入磁盘
         }
-        close(listen_sock);
-        listen_sock=-1;
-        data_sock=-1;
-        file.close();
-        cout<<"传输完成"<<endl;
+        if (datasock >= 0) {
+            close(datasock);
+            datasock = -1;
+        }
+        cout<<"传输完成"<<"：接收"<<total<<endl;
     }
     void handlegroupFileEnd(json& data, int client_sock)
     {
@@ -288,14 +291,15 @@ public:
             }
             string responseStr = response.dump();
             // 添加调试输出
-            cout << "发送响应: " << responseStr << endl;
+            // cout << "发送响应: " << responseStr << endl;
 
-            // 发送响应给客户端
-            if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
-                cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
-            } else {
-                cout << "已发送未读消息给用户 " << username << endl;
-            }
+            // // 发送响应给客户端
+            // if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
+            //     cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
+            // } else {
+            //     cout << "已发送未读消息给用户 " << username << endl;
+            // }
+            sendLengthPrefixed(fd,response);
 
     }
     void updategroupFileDeliveryStatus(json& data, int client_sock)
@@ -310,11 +314,13 @@ public:
             };
             string responseStr = errorResponse.dump();
             send(client_sock, responseStr.c_str(), responseStr.size(), 0);
+            cout<<"??"<<endl;
             return;
         }
+       
         unique_ptr<sql::PreparedStatement> Stmt(
                 con->prepareStatement(
-                "DELETE group_files "
+                "DELETE  from group_files "
                 "WHERE id = ?"
                 )
             );
@@ -330,21 +336,12 @@ public:
     {
         string filename=data["filename"];
         string path="/home/lfd/1/"+filename;
-        uint16_t port=pasv();
-        cout<<"port = "<<port<<endl;
-        if (port == 0) {
-        json req = {{"success", false}, {"error", "PASV失败"}};
-        string str = req.dump()+"\n";
-        send(client_sock, str.c_str(), str.size(), 0);
-        return;
-    }
     
         // 发送响应（包含端口号）
         json req = {
-            {"success", true},
-            {"port", port} // 必须发送端口号给客户端
+            {"success", true} // 必须发送端口号给客户端
         };
-        string str = req.dump()+"\n";
+        string str = req.dump();
         send(client_sock, str.c_str(), str.size(), 0);
         // json response = {
         //     {"success", true}
@@ -352,7 +349,7 @@ public:
         // sendResponse(client_sock, response);
         sockaddr_in client_addr{};
         socklen_t addr_len = sizeof(client_addr);
-        data_sock = accept(listen_sock, 
+        int datasock = accept(listen_sock, 
                       (sockaddr*)&client_addr, &addr_len);
         cout<<"开始发送文件"<<endl;
         std::ifstream file(path, std::ios::binary);
@@ -367,7 +364,7 @@ public:
             if (bytes_read > 0) {
                 ssize_t total_sent = 0;
                 while (total_sent < bytes_read) {
-                    ssize_t sent = send(data_sock, 
+                    ssize_t sent = send(datasock, 
                                     buffer + total_sent, 
                                     bytes_read - total_sent, 
                                     MSG_NOSIGNAL);
@@ -380,10 +377,11 @@ public:
             }
         }
         std::cout << "发送完成: "<< " (" << total << " bytes)" << std::endl;
-        file.close();
-        close(listen_sock);
-        listen_sock=-1;
-        data_sock=-1;
+        //file.close();
+        if (datasock >= 0) {
+            close(datasock);
+            datasock = -1;
+        }
 
         
     }

@@ -308,12 +308,13 @@ public:
             // 添加调试输出
             cout << "发送响应: " << responseStr << endl;
 
-            // 发送响应给客户端
-            if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
-                cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
-            } else {
-                cout << "已发送未读消息给用户 " << username << endl;
-            }
+            // // 发送响应给客户端
+            // if (send(fd, responseStr.c_str(), responseStr.size(), 0) < 0) {
+            //     cerr << "发送未读消息响应失败: " << strerror(errno) << endl;
+            // } else {
+            //     cout << "已发送未读消息给用户 " << username << endl;
+            // }
+            sendLengthPrefixed(fd,response);
 
     }
     void privatefilesend(json& data, int client_sock)
