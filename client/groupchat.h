@@ -25,7 +25,7 @@ class groupchat
 private:
     string userName;
     int sock;
-    bool running= true;
+    bool grouprunning= true;
     thread recvThread;
     bool inChatSession = false;
     int activeid;
@@ -40,6 +40,28 @@ private:
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
+    }
+    json sendReq(const json& request) {
+        // 序列化请求为JSON字符串
+        string requestStr = request.dump();
+        
+        //发送请求到服务器
+        {
+            lock_guard<mutex> lock(outputMutex);
+            if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
+                cerr << "发送请求失败" << endl;
+                return {{"success", false}, {"message", "发送请求失败"}};
+            }
+        }
+        // std::vector<char> data(requestStr.size()+4);
+        // int _len = htonl(requestStr.size());
+        
+        // memcpy(data.data(),&_len,4);
+        // memcpy(data.data()+4,requestStr.c_str(),requestStr.size());
+        // int ret = send(sock, data.data(),data.size(),0);
+        
+        // 对于不需要即时响应的请求直接返回
+        return {{"success", true}};
     }
     // // 终端原始模式设置
     // struct termios orig_termios;
@@ -69,15 +91,15 @@ public:
         userName=name;
         sock=fd;
         // 启动接收线程
-       recvThread = std::thread([this]() { receivegroupMessages(); });
+       //recvThread = std::thread([this]() { receivegroupMessages(); });
     
         // 运行主菜单系统
             mainMenu();
             // 清理资源
-        running = false;
-        if (recvThread.joinable()) {
-            recvThread.join();
-        }
+        grouprunning = false;
+        // if (recvThread.joinable()) {
+        //     recvThread.join();
+        // }
     }
     // 发送消息给指定用户
     void sendMessage(const string& recipient, const string& text) 
@@ -92,7 +114,24 @@ public:
             {"timestamp", static_cast<uint64_t>(now)}
         };
         
-        json response = sendRequest(request);
+        json response = sendReq(request);
+        // std::string Str = request.dump();
+        // send(sock, Str.c_str(), Str.size(), 0);
+        // uint32_t len;
+        // recv(sock, &len, sizeof(len), MSG_WAITALL);
+        // len = ntohl(len);
+        
+        // // 接收数据
+        // std::vector<char> buffer(len);
+        // size_t totalReceived = 0;
+        
+        // while (totalReceived < len) {
+        //     ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+        //     if (n <= 0) break;
+        //     totalReceived += n;
+        // }
+    
+        // json response=json::parse(string(buffer.data(), len));
         
         if (response["success"]) {
             // 显示发送的消息
@@ -114,8 +153,8 @@ public:
         }
     }
     void mainMenu() 
-    {
-        while (running) {
+    {   grouprunning=true;
+        while (true) {
             // 显示主菜单
             cout << "\n===== 聊天系统主菜单 =====" << endl;
             cout << "1. 开始聊天" << endl;
@@ -149,7 +188,7 @@ public:
             else if (choice == "3") {
                 // 退出系统
                 cout << "感谢使用，再见!" << endl;
-                running = false;
+                grouprunning = false;
                 break;
             } else {
                 cout << "无效选择，请重新输入!" << endl;
@@ -200,7 +239,16 @@ public:
     void startgroupChat(int id)
     {
         
-        displayUnreadMessagesFromgroup(userName);
+        
+        {
+        std::lock_guard<std::mutex> lock(thread_mutex);
+        if (notification_thread.joinable()) {
+            notification_thread_running = false;
+            notification_thread.join();
+        }
+    }
+    displayUnreadMessagesFromgroup(userName);
+        recvThread = std::thread([this]() { receivegroupMessages(); });
         // 设置活动聊天状态
         inChatSession = true;
         activeid = id;
@@ -237,10 +285,30 @@ public:
       
     
         // 退出聊天会话
+        
         inChatSession = false;
         activeid = -1;
         inputBuffer.clear();
         //restoreTerminal();
+        {
+        
+        std::lock_guard<std::mutex> lock(thread_mutex);
+        
+         cout<<"??"<<endl;
+         if (recvThread.joinable()) {
+            recvThread.join();
+            cout<<"?"<<endl;
+            //recvThread.detach();
+         }
+    }
+    
+    // 13. 重启通知线程
+    {
+        std::lock_guard<std::mutex> lock(thread_mutex);
+        notification_thread_running = true;
+        notification_thread = std::thread(notificationPollingThread);
+    }
+    
         
         lock_guard<mutex> lock(outputMutex);
         cout << "\n退出与 " << currentGroup << " 的聊天" << endl;
@@ -249,18 +317,49 @@ public:
     {
         char buffer[4096];
         
-        while (running) {
+        while (grouprunning) {
             // 清空缓冲区
             memset(buffer, 0, sizeof(buffer));
             
             // 接收消息（非阻塞模式）
-            ssize_t bytesRead = recv(sock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+            //ssize_t bytesRead = recv(sock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+             uint32_t len;
+            ssize_t bytesRead=0;
+            //= recv(sock, &len, sizeof(len), MSG_WAITALL);
+            if(grouprunning){
+                bytesRead=recv(sock, &len, sizeof(len), MSG_WAITALL);
+            }
+            if (bytesRead != sizeof(len)) {
+                throw std::runtime_error("接收长度失败");
+            }
+            
+            len = ntohl(len);
+            
+            // 接收数据
+            std::vector<char> buffer(len);
+            size_t totalReceived = 0;
+            
+            while (totalReceived < len) {
+                ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+                if (n <= 0) {
+                    throw std::runtime_error("接收数据失败");
+                }
+                totalReceived += n;
+            }
+                cout<<"receive="<<endl;
+                for(auto & ch:buffer)
+                {
+                    cout<<ch;
+                }
+                cout<<endl;
+            json message= json::parse(string(buffer.data(), len));
+            
             
             if (bytesRead > 0) {
-                buffer[bytesRead] = '\0'; // 确保字符串正确终止
+               // buffer[bytesRead] = '\0'; // 确保字符串正确终止
                 
                 try {
-                    json message = json::parse(buffer);
+                    //json message = json::parse(buffer);
                     // 根据消息类型直接处理
                     if (!message.contains("type")) {
                         lock_guard<mutex> lock(outputMutex);
@@ -296,26 +395,26 @@ public:
                                 cout << "> " << inputBuffer << flush; // 重新显示输入提示
                             }
                             // 否则显示通知
-                            else {
-                                cout << "\n您收到来自 " << sender << " 的新消息 (" 
-                                    << (text.length() > 20 ? text.substr(0, 20) + "..." : text) 
-                                    << ") [" << timeStr << "]" << endl;
-                                if (inChatSession) {
-                                    cout << "> " << inputBuffer << flush; // 重新显示输入提示
-                                }
-                            }
+                            // else {
+                            //     cout << "\n您收到来自 " << sender << " 的新消息 (" 
+                            //         << (text.length() > 20 ? text.substr(0, 20) + "..." : text) 
+                            //         << ") [" << timeStr << "]" << endl;
+                            //     if (inChatSession) {
+                            //         cout << "> " << inputBuffer << flush; // 重新显示输入提示
+                            //     }
+                            // }
                         }
 
-                        // // 发送消息确认（如果提供了消息ID）                                                 
-                        // if (message.contains("message_id")) {
-                        //     json ack = {
-                        //         {"type", "ack_private_message"},
-                        //         //{"message_id", message["message_id"]},
-                        //         {"user", currentUser},
-                        //         {"friend",sender}
-                        //     };
-                        //     sendRequest(ack);
-                        // }
+                        // 发送消息确认（如果提供了消息ID）                                                 
+                        if (message.contains("message_id")) {
+                            json ack = {
+                                {"type", "ack_group_message"},
+                                //{"message_id", message["message_id"]},
+                                {"user",userName },
+                                {"groupid", groupid}
+                            };
+                            sendRequest(ack);
+                        }
                     }
                     
                 } catch (json::parse_error& e) {
@@ -326,13 +425,13 @@ public:
                 // 连接关闭
                 lock_guard<mutex> lock(outputMutex);
                 cerr << "\n服务器关闭了连接" << endl;
-                running = false;
+                grouprunning = false;
                 break;
             } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
                 // 真正的错误（非非阻塞操作产生的错误）
                 lock_guard<mutex> lock(outputMutex);
                 perror("\n接收消息错误");
-                running = false;
+                grouprunning = false;
                 break;
             }
             
@@ -352,9 +451,21 @@ public:
         //json response = sendRequest(request);
         std::string requestStr = request.dump();
         send(sock, requestStr.c_str(), requestStr.size(), 0);
-        char buffer[4096] = {0};
-        recv(sock, buffer, 4096, 0);
-        json response= json::parse(buffer);
+        // char buffer[4096] = {0};
+        // recv(sock, buffer, 4096, 0);
+        uint32_t len;
+        recv(sock, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        
+        while (totalReceived < len) {
+            ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+        }
+        json response= json::parse(string(buffer.data(), len));
         if (!response["success"]) 
         {
             

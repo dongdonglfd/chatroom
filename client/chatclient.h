@@ -22,6 +22,9 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>  
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
+#include <fcntl.h>
 using json = nlohmann::json;
 using namespace std;
 #define PORT 8080
@@ -56,7 +59,6 @@ std::string receiveLengthPrefixed() {
     uint32_t len;
     recv(sockfd, &len, sizeof(len), MSG_WAITALL);
     len = ntohl(len);
-    
     // 接收数据
     std::vector<char> buffer(len);
     size_t totalReceived = 0;
@@ -72,7 +74,7 @@ std::string receiveLengthPrefixed() {
 void notificationPollingThread()
 {
     std::lock_guard<std::mutex> lock(output_mutex);
-    const int POLL_INTERVAL = 2;     
+    const int POLL_INTERVAL = 1;     
     while (notification_thread_running) {
         // 构造轮询请求
         json request = {
@@ -112,6 +114,10 @@ void notificationPollingThread()
                             //std::string content = notification["content"];
                             std::cout << "\n[新消息] " <<"来自"<<sender << std::endl;
                         } 
+                        else if(type=="new_groupmessage"){
+                            int groupid=notification["groupid"];
+                            cout<<"[群消息]来自"<<groupid<<endl;
+                        }
                         /////////////////////////////////////
                     //     if (type == "private_message") 
                     // {
@@ -176,7 +182,7 @@ private:
     // 全局变量
     int sock = -1;           // 已连接的套接字描述符
     string currentUser = "";    // 当前登录的用户名
-    bool running= true; // 控制程序运行的标志
+    std::atomic<bool> running=true; // 控制程序运行的标志
     thread recvThread;          // 接收消息的线程
     //mutex outputMutex;          // 保护输出操作的互斥锁
 
@@ -349,9 +355,9 @@ public:
     // 2. 启动接收消息线程
     {   running=true;
         std::lock_guard<std::mutex> lock(thread_mutex);
-        if (recvThread.joinable()) {
-            recvThread.join(); // 确保之前的线程已结束
-        }
+        // if (recvThread.joinable()) {
+        //     recvThread.join(); // 确保之前的线程已结束
+        // }
         recvThread = std::thread([this]() { receiveMessages(); });
     }
     
@@ -382,6 +388,7 @@ public:
             if (!inputLine.empty()) {
                 // 处理输入行
                 if (inputLine == "/exit") {
+                    running=false;
                     break;
                 }
                 cout<<"\033[A"<< flush;
@@ -411,16 +418,17 @@ public:
         
          // 12. 停止接收线程
     {
+        
         std::lock_guard<std::mutex> lock(thread_mutex);
         
          cout<<"??"<<endl;
         if (recvThread.joinable()) {
             recvThread.join();
-            cout<<"?"<<endl;
+            
             //recvThread.detach();
-        }
+         }
     }
-    
+    cout<<"?"<<endl;
     // 13. 重启通知线程
     {
         std::lock_guard<std::mutex> lock(thread_mutex);
@@ -465,18 +473,23 @@ public:
                 << response.value("message", "未知错误") << endl;
         }
     }
+    /////////////////////////////////////////////////////////////////
     void receiveMessages() 
     {
-        char buffer[4096];
+        //char buffer[4096];
         
         while (running) {
             // 清空缓冲区
-            memset(buffer, 0, sizeof(buffer));
+            //memset(buffer, 0, sizeof(buffer));
             
             // // 接收消息（非阻塞模式）
             // ssize_t bytesRead = recv(sock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
             uint32_t len;
-            ssize_t bytesRead = recv(sock, &len, sizeof(len), MSG_WAITALL);
+            ssize_t bytesRead=0;
+            //= recv(sock, &len, sizeof(len), MSG_WAITALL);
+            if(running){
+                bytesRead=recv(sock, &len, sizeof(len), MSG_WAITALL);
+            }
             if (bytesRead != sizeof(len)) {
                 throw std::runtime_error("接收长度失败");
             }
@@ -494,19 +507,13 @@ public:
                 }
                 totalReceived += n;
             }
-            cout<<"receive="<<endl;
-            for(auto & ch:buffer)
-            {
-                cout<<ch;
-            }
-            cout<<endl;
-        json response= json::parse(string(buffer.data(), len));
+        json  message= json::parse(string(buffer.data(), len));
             
             if (bytesRead > 0) {
                 //buffer[bytesRead] = '\0'; // 确保字符串正确终止
                 
                 try {
-                    json message = json::parse(buffer);
+                    ///json message = json::parse(buffer);
                     // 根据消息类型直接处理
                     if (!message.contains("type")) {
                         lock_guard<mutex> lock(outputMutex);
@@ -582,6 +589,8 @@ public:
             this_thread::sleep_for(chrono::milliseconds(50));
         }
     }
+    //////////////////////////////////////////////////////////////////////////
+   
 //     std::mutex receive;
 //     void receiveMessages() 
 //  {   cout<<"qqq"<<endl;

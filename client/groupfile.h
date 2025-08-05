@@ -175,8 +175,8 @@ public :
         }
         cout<<"发送成功"<<endl;
     }
-    void pasvclient(uint16_t port)
-    {
+    void pasvclient()
+    {cout<<"cfd"<<endl;
         cfd=socket(AF_INET,SOCK_STREAM,0);
         if(cfd==-1)
         {
@@ -188,7 +188,7 @@ public :
         //2.连接服务器
         struct sockaddr_in addr;
         addr.sin_family=AF_INET;//IPV4
-        addr.sin_port=htons(port);//网络字节序
+        addr.sin_port=htons(8090);//网络字节序
         //变成大端
         inet_pton(AF_INET,addressfile.c_str(),&addr.sin_addr.s_addr);
         int ret=connect(cfd,(struct sockaddr*)&addr,sizeof(addr));
@@ -211,22 +211,14 @@ public :
             {"filesize",fileSize}
         };
         std::string startStr = startMsg.dump();
-        json response = sendreq(sock, startMsg);
+        json response = sendRequest(sock, startMsg);
         
-        if (!response.value("success", false)) {
-            std::string error = response.value("error", "未知错误");
-            throw std::runtime_error("服务器拒绝文件传输: " + error);
-        }
+        // if (!response.value("success", false)) {
+        //     std::string error = response.value("error", "未知错误");
+        //     throw std::runtime_error("服务器拒绝文件传输: " + error);
+        // }
         
-        // 5. 安全获取端口号
-        if (!response.contains("port") || !response["port"].is_number()) {
-            // 打印调试信息
-            std::cerr << "无效的服务器响应: " << response.dump() << std::endl;
-            throw std::runtime_error("服务器未提供有效的端口号");
-        }
-        uint16_t port = response["port"];
-        cout<<"port = "<<port<<endl;
-        pasvclient(port);
+        pasvclient();
          char buffer[4096];
         ssize_t total = 0;
         
@@ -258,7 +250,7 @@ public :
         };
         json endResponse = sendRequest(sock, endMsg);
         close(cfd);
-        file.close();
+        //file.close();
         
         std::cout << "文件上传完成: " << filePath << std::endl;
     }
@@ -274,7 +266,23 @@ public :
         };
         
         // 2. 发送请求
-        json response = sendReq(sock, request);// 3. 检查响应状态
+        //json response = sendReq(sock, request);// 3. 检查响应状态
+        std::string requestStr = request.dump();
+        // 发送请求
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        uint32_t len;
+        recv(sock, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        
+        while (totalReceived < len) {
+            ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+        }
+        json response = json::parse(string(buffer.data(), len));
         if (!response.value("success", false)) {
             throw std::runtime_error("服务器错误: " + response.value("message", ""));
         }
@@ -330,7 +338,14 @@ public :
         receivegroupfile(selectedFile);
     }
     void receivegroupfile(FileInfoo &selectedFile)
-    {   cout<<"123"<<endl;
+    {   
+        {
+            std::lock_guard<std::mutex> lock(thread_mutex);
+            if (notification_thread.joinable()) {
+                notification_thread_running = false;
+                notification_thread.join();
+            }
+        }
         json downloadRequest = {
             {"type", "download_groupfile"},
             {"file_id", selectedFile.id},
@@ -338,22 +353,13 @@ public :
 
         };
         //json response = sendRequest(sock, downloadRequest);
-        json response = sendreq(sock,downloadRequest);
-        cout<<"2345"<<endl;
-        if (!response.value("success", false)) {
-            std::string error = response.value("error", "未知错误");
-            throw std::runtime_error("服务器拒绝文件传输: " + error);
-        }
+        json response = sendRequest(sock,downloadRequest);
+        // if (!response.value("success", false)) {
+        //     std::string error = response.value("error", "未知错误");
+        //     throw std::runtime_error("服务器拒绝文件传输: " + error);
+        // }
         
-        // 5. 安全获取端口号
-        if (!response.contains("port") || !response["port"].is_number()) {
-            // 打印调试信息
-            std::cerr << "无效的服务器响应: " << response.dump() << std::endl;
-            throw std::runtime_error("服务器未提供有效的端口号");
-        }
-        uint16_t port = response["port"];
-        cout<<"port = "<<port<<endl;
-        pasvclient(port);
+        pasvclient();
         char buffer[4096];
         ssize_t total = 0;
         cout<<"开始接收"<<endl;
@@ -390,6 +396,12 @@ public :
             //{"bytes_sent", total_sent}
         };
         json endResponse = sendRequest(sock, endMsg);
+        // 13. 重启通知线程
+    {
+        std::lock_guard<std::mutex> lock(thread_mutex);
+        notification_thread_running = true;
+        notification_thread = std::thread(notificationPollingThread);
+    }
         
     }
     

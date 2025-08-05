@@ -289,7 +289,11 @@ class Friend
             {"user", currentUser}
         };
 
-        json req = sendReq(request, sockfd);
+        //json req = sendReq(request, sockfd);
+        std::string requestStr = request.dump();
+        ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        string str=receiveLengthPrefixed();
+        json req=json::parse(str);
         if (req.is_null() || !req.is_object()) {
             std::cerr << "Error: Invalid response from server!" << std::endl;
             return;
@@ -348,7 +352,11 @@ class Friend
             {"user", currentUser}
         };
 
-        json req = sendReq(request, sockfd);
+        //json req = sendReq(request, sockfd);
+        std::string requestStr = request.dump();
+        ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        string str=receiveLengthPrefixed();
+        json req=json::parse(str);
         if (req.is_null() || !req.is_object()) {
             std::cerr << "Error: Invalid response from server!" << std::endl;
             return;

@@ -316,7 +316,24 @@ void sendFile(int sockfd,string currentuser)
         };
         
         // 2. 发送请求
-        json response = sendreq(sock, request);// 3. 检查响应状态
+        //json response = sendreq(sock, request);// 3. 检查响应状态
+        std::string requestStr = request.dump();
+        
+        // 发送请求
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        uint32_t len;
+        recv(sock, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        
+        while (totalReceived < len) {
+            ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+        }
+        json response=json::parse(string(buffer.data(), len));
         if (!response.value("success", false)) {
             throw std::runtime_error("服务器错误: " + response.value("message", ""));
         }
