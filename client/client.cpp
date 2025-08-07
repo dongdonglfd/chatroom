@@ -1,6 +1,7 @@
 #include"friend.h"
 #include"group.h"
 #include<signal.h>
+//string buf_;
 // string notifyaddress;
 // std::mutex notification_mutex;
 // //std::mutex output_mutex;
@@ -152,10 +153,35 @@ private:
         request["password"] = password;
         sendMessage(request.dump());
         // 等待服务器响应
-        std::string response = receiveMessage();
-        cout<<response<<endl;
-        json result = json::parse(response);
-        cout<<result.dump();
+        //std::string response = receiveMessage();
+        //std::string response=requestlength(request);
+        uint32_t len;
+        recv(sockfd, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        cout<<"len="<<len<<endl;
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        //char buffer[1024];
+        while (totalReceived < len) {
+             ssize_t n = recv(sockfd, buffer.data() + totalReceived, len - totalReceived, 0);
+            //ssize_t n = recv(sockfd, buffer + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+            
+        }
+        //buf_.append(buffer);
+        //return json::parse(string(buffer.data(), len));
+        //cout<<response<<endl;
+        cout<<"buffer="<<endl;
+        for(auto & ch:buffer)
+        {
+            cout<<ch;
+        }
+        //cout<<buf_<<endl;
+        cout<<endl;
+        json result = json::parse(string(buffer.data(), len));
+        //json result = json::parse(string(buffer, len));
         
         if (result["success"]) {
             current_user = username;
@@ -428,7 +454,13 @@ public:
             switch(choice) {
                 case '1': friendMenu(sockfd,current_user); break;
                 case '2': groupMenu(sockfd,current_user); break;
-                case '3': notification_thread.detach();return;
+                case '3': 
+                {json req;
+                req["type"]="loginexit";
+                req["name"]=current_user;
+                string request=req.dump();
+                send(sockfd,request.c_str(),request.size(),0);
+                notification_thread.detach();return;}
                 default: std::cout << "无效输入!\n";
             }
         }

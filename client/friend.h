@@ -1,5 +1,6 @@
 #include"chatclient.h"
 #include"fileclient.h"
+
 class Friend
 {
     private:
@@ -28,7 +29,7 @@ class Friend
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
     }
-    json requestlength(const json& req)
+   public: json requestlength(const json& req)
     {
         std::string requestStr = req.dump();
         send(sock, requestStr.c_str(), requestStr.size(), 0);
@@ -327,6 +328,7 @@ class Friend
         std::string requestStr = request.dump();
         ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
         string str=receiveLengthPrefixed();
+        cout<<str<<endl;
         json req=json::parse(str);
         if (req.is_null() || !req.is_object()) {
             std::cerr << "Error: Invalid response from server!" << std::endl;
@@ -390,6 +392,7 @@ class Friend
         std::string requestStr = request.dump();
         ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
         string str=receiveLengthPrefixed();
+        cout<<str<<endl;
         json req=json::parse(str);
         if (req.is_null() || !req.is_object()) {
             std::cerr << "Error: Invalid response from server!" << std::endl;

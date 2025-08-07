@@ -374,9 +374,9 @@ public:
     // 2. 启动接收消息线程
     {   running=true;
         std::lock_guard<std::mutex> lock(thread_mutex);
-        // if (recvThread.joinable()) {
-        //     recvThread.join(); // 确保之前的线程已结束
-        // }
+        if (recvThread.joinable()) {
+            recvThread.join(); // 确保之前的线程已结束
+        }
         recvThread = std::thread([this]() { receiveMessages(); });
     }
     
