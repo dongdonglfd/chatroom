@@ -62,25 +62,25 @@ class Group :public  groupchat,public groupfile
             
             // 处理选项
             if (choice == "1") {
-                createGroup();
+                notificationstop();createGroup();notificationstart();
             } else if (choice == "2") {
-                disbandGroup();
+                notificationstop();disbandGroup();notificationstart();
             } else if (choice == "3") {
-                joinGroup();
+                notificationstop();joinGroup();notificationstart();
             } else if (choice == "4") {
-                showMyGroups();
+                notificationstop();showMyGroups();notificationstart();
             } else if (choice == "5") {
-                viewGroupInfo();
+                notificationstop();viewGroupInfo();notificationstart();
             } else if (choice == "6") {
-                leaveGroup();
+                notificationstop();leaveGroup();notificationstart();
             } else if (choice == "7") {
-                manageGroupMembers();
+                notificationstop();manageGroupMembers();notificationstart();
             } else if (choice == "8") {
-                groupChat(sock, currentUser);
+                notificationstop();groupChat(sock, currentUser);notificationstart();
             } else if (choice == "9") {
-                sendgroupfile(sock, currentUser);
+                notificationstop();sendgroupfile(sock, currentUser);notificationstart();
             } else if (choice == "10") {
-                getUndeliveredgroupFiles(sock, currentUser);
+                notificationstop();getUndeliveredgroupFiles(sock, currentUser);notificationstart();
             } else if (choice == "11") {
                 return; // 返回主菜单
             } else {
@@ -110,12 +110,23 @@ class Group :public  groupchat,public groupfile
         }
     
     }
+    bool is_number(const std::string& s) {
+        return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
+    }
     void disbandGroup()
     {
         std::cout << "\n=== 解散群组 ===\n";
         std::cout << "输入要解散的群号: ";
-        int groupId;
-        std::cin >> groupId;
+        string group;
+        int groupId=0;
+        std::cin >> group;;
+        if (is_number(group)) {
+         groupId = std::stoi(group);
+        } else {
+            std::cerr << "错误：字符串不是有效数字！" << std::endl;
+            return ;
+        }
+        
         
         // 确认操作
         std::cout << "确定要解散群组吗? (y/n): ";
@@ -142,8 +153,17 @@ class Group :public  groupchat,public groupfile
     {
         std::cout << "\n=== 加入群组 ===\n";
         std::cout << "输入群号: ";
-        int groupId;
-        std::cin >> groupId;
+        // int groupId;
+        // std::cin >> groupId;
+        string group;
+        int groupId=0;
+        std::cin >> group;;
+        if (is_number(group)) {
+         groupId = std::stoi(group);
+        } else {
+            std::cerr << "错误：字符串不是有效数字！" << std::endl;
+            return ;
+        }
         
         std::cout << "输入验证消息: ";
         std::string message;
@@ -196,8 +216,15 @@ class Group :public  groupchat,public groupfile
     {
         std::cout << "\n=== 查看群组信息 ===\n";
         std::cout << "输入群号: ";
-        int groupId;
-        std::cin >> groupId;
+        string group;
+        int groupId=0;
+        std::cin >> group;;
+        if (is_number(group)) {
+         groupId = std::stoi(group);
+        } else {
+            std::cerr << "错误：字符串不是有效数字！" << std::endl;
+            return ;
+        }
         
         json req;
         req["type"] = "get_group_info";
@@ -236,8 +263,15 @@ class Group :public  groupchat,public groupfile
     {
         std::cout << "\n=== 退出群组 ===\n";
         std::cout << "输入要退出的群号: ";
-        int groupId;
-        std::cin >> groupId;
+        string group;
+        int groupId=0;
+        std::cin >> group;;
+        if (is_number(group)) {
+         groupId = std::stoi(group);
+        } else {
+            std::cerr << "错误：字符串不是有效数字！" << std::endl;
+            return ;
+        }
         
         // 确认操作
         std::cout << "确定要退出该群组吗? (y/n): ";
@@ -267,8 +301,15 @@ class Group :public  groupchat,public groupfile
 
         std::cout << "\n=== 群组管理 ===\n";
         std::cout << "输入群号: ";
-        int groupId;
-        std::cin >> groupId;
+        string group;
+        int groupId=0;
+        std::cin >> group;;
+        if (is_number(group)) {
+         groupId = std::stoi(group);
+        } else {
+            std::cerr << "错误：字符串不是有效数字！" << std::endl;
+            return ;
+        }
         json req;
         req["type"] = "get_user_role";
         req["user"] = currentUser;

@@ -151,10 +151,11 @@ private:
         request["username"] = username;
         request["password"] = password;
         sendMessage(request.dump());
-
         // 等待服务器响应
         std::string response = receiveMessage();
+        cout<<response<<endl;
         json result = json::parse(response);
+        cout<<result.dump();
         
         if (result["success"]) {
             current_user = username;
