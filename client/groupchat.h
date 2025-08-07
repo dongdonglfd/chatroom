@@ -154,7 +154,7 @@ public:
     }
     void mainMenu() 
     {   grouprunning=true;
-        while (true) {
+        while (grouprunning) {
             // 显示主菜单
             cout << "\n===== 聊天系统主菜单 =====" << endl;
             cout << "1. 开始聊天" << endl;
@@ -269,6 +269,13 @@ public:
         if (!inputLine.empty()) {
             // 处理输入行
             if (inputLine == "/exit") {
+                json request = {
+                        {"type", "group_message"},
+                        {"sender", userName},
+                        {"groupID",-1 }
+                    };
+                string str=request.dump();
+                send(sock,str.c_str(),str.size(),0);
                 break;
             }
             cout<<"\033[A"<< flush;
@@ -311,7 +318,7 @@ public:
     
         
         lock_guard<mutex> lock(outputMutex);
-        cout << "\n退出与 " << currentGroup << " 的聊天" << endl;
+        cout << "\n退出与 " <<groupid << " 的聊天" << endl;
     } 
     void receivegroupMessages()
     {
@@ -416,7 +423,14 @@ public:
                             sendRequest(ack);
                         }
                     }
-                    
+                    if(type=="exit")
+                    {
+                        grouprunning=false;
+                    }
+                    if(type=="quitgroup")
+                    {
+                        cout<<"您不在该群组中，无法发送消息"<<endl;
+                    }                   
                 } catch (json::parse_error& e) {
                     lock_guard<mutex> lock(outputMutex);
                     cerr << "消息解析错误: " << e.what() << endl;

@@ -28,6 +28,25 @@ class Friend
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
     }
+    json requestlength(const json& req)
+    {
+        std::string requestStr = req.dump();
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        uint32_t len;
+        recv(sock, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        
+        while (totalReceived < len) {
+            ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+        }
+        return json::parse(string(buffer.data(), len));
+
+    }
     public:
     void friendMenu(int sockfd,std::string current_user) 
     {
@@ -50,14 +69,14 @@ class Friend
             std::cin >> choice;
             
             switch(choice) {
-                case '1': addFriend(); break;
-                case '2': deleteFriend(); break;
-                case '3': block(); break;//处理屏蔽
-                case '4': showFriends(); break;
-                case '5': processRequest();break;//处理请求
-                case '6': showFriends();chat.privateChat(sock,currentUser);break;
-                case '7': showFriends();file.sendFile(sock,currentUser);break;
-                case '8': file.getUndeliveredFiles(sock,currentUser);break;
+                case '1': notificationstop();addFriend(); notificationstart();break;
+                case '2': notificationstop();deleteFriend();notificationstart(); break;
+                case '3': notificationstop();block();notificationstart(); break;//处理屏蔽
+                case '4': notificationstop();showFriends();notificationstart(); break;
+                case '5': notificationstop();processRequest();notificationstart();break;//处理请求
+                case '6': notificationstop();showFriends();chat.privateChat(sock,currentUser);notificationstart();break;
+                case '7': notificationstop();showFriends();file.sendFile(sock,currentUser);notificationstart();break;
+                case '8': notificationstop();file.getUndeliveredFiles(sock,currentUser);notificationstart();break;
                 case '9': return;
                 default: std::cout << "无效输入!\n";
             }
@@ -92,7 +111,7 @@ class Friend
         req["from"] = currentUser;
         req["to"] = target;
 
-        json res = sendRequest(req);
+        json res = requestlength(req);
         
         if (res["success"]) {
             std::cout << "✔ 请求已发送\n";
@@ -203,8 +222,23 @@ class Friend
 
         // 发送请求并获取响应
         cout<<"111"<<endl;
-        json res = sendRequest(req);
-        cout<<res.dump()<<endl;
+        //json res = sendRequest(req);
+        std::string requestStr = req.dump();
+        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        uint32_t len;
+        recv(sock, &len, sizeof(len), MSG_WAITALL);
+        len = ntohl(len);
+        // 接收数据
+        std::vector<char> buffer(len);
+        size_t totalReceived = 0;
+        
+        while (totalReceived < len) {
+            ssize_t n = recv(sock, buffer.data() + totalReceived, len - totalReceived, 0);
+            if (n <= 0) break;
+            totalReceived += n;
+        }
+        //return std::string(buffer.data(), len);
+        json res = json::parse(string(buffer.data(), len));
 
         // 检查响应是否成功
         if (!res["success"]) {

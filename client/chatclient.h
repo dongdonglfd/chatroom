@@ -175,6 +175,25 @@ void notificationPollingThread()
         }
     }
 }
+void notificationstart()
+{
+    
+       std::lock_guard<std::mutex> lock(thread_mutex);
+        notification_thread_running = true;
+        notification_thread = std::thread(notificationPollingThread);
+    
+}
+void notificationstop()
+{
+    
+        
+        std::lock_guard<std::mutex> lock(thread_mutex);
+        if (notification_thread.joinable()) {
+            notification_thread_running = false;
+            notification_thread.join();
+        }
+    
+}
 class Chat
 {
 private:
@@ -340,13 +359,13 @@ public:
     {
        displayUnreadMessagesFromFriend(friendName);
          // 1. 安全地停止通知线程
-    {
-        std::lock_guard<std::mutex> lock(thread_mutex);
-        if (notification_thread.joinable()) {
-            notification_thread_running = false;
-            notification_thread.join();
-        }
-    }
+    // {
+    //     std::lock_guard<std::mutex> lock(thread_mutex);
+    //     if (notification_thread.joinable()) {
+    //         notification_thread_running = false;
+    //         notification_thread.join();
+    //     }
+    // }
     if (!isValidFriend(friendName)) {
             std::cerr << "✘ 无法与 " << friendName << " 聊天，请先添加好友或解除屏蔽\n";
             return;
@@ -383,12 +402,22 @@ public:
         while (inChatSession) 
         {
             // 读取整行输入
-            string inputLine = readLineNonBlocking();
+            //string inputLine = readLineNonBlocking();
+            string inputLine;
+            getline(cin,inputLine);
             
             if (!inputLine.empty()) {
                 // 处理输入行
                 if (inputLine == "/exit") {
                     running=false;
+                    json request = {
+                        {"type", "send_message"},
+                        {"sender", currentUser},
+                        {"recipient", "==="}
+                    };
+                    string str=request.dump();
+                    send(sock,str.c_str(),str.size(),0);
+
                     break;
                 }
                 cout<<"\033[A"<< flush;
@@ -430,11 +459,11 @@ public:
     }
     cout<<"?"<<endl;
     // 13. 重启通知线程
-    {
-        std::lock_guard<std::mutex> lock(thread_mutex);
-        notification_thread_running = true;
-        notification_thread = std::thread(notificationPollingThread);
-    }
+    // {
+    //     std::lock_guard<std::mutex> lock(thread_mutex);
+    //     notification_thread_running = true;
+    //     notification_thread = std::thread(notificationPollingThread);
+    // }
     
         cout << "\n退出与 " << friendName << " 的聊天" << endl;
     }
@@ -564,6 +593,10 @@ public:
                             };
                             sendRequest(ack);
                         }
+                    }
+                    if(type=="exit")
+                    {
+                        running=false;
                     }
 
                     
