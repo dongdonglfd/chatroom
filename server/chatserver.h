@@ -45,6 +45,7 @@ struct Message {
     uint64_t message_id;
     bool delivered = false;
 };
+bool flag=false;
  unordered_map<string, int> online_users; // 在线用户表
 //  void sendLengthPrefixed(int fd, const json& response) {
 //     std::string responseStr = response.dump();
@@ -173,7 +174,8 @@ class Chat
         msg.sender = request["sender"];
         msg.receiver = request["recipient"];
         if(msg.receiver=="===")
-        {
+        {   
+            flag=false;
             json exitmsg;
             exitmsg["type"]="exit";
             std::string responseStr = exitmsg.dump();
@@ -237,7 +239,7 @@ class Chat
         {
             std::lock_guard<std::mutex> lock(online_users_mutex);
             auto it = online_users.find(msg.receiver);
-            if (it != online_users.end()) {
+            if (it != online_users.end()&&flag) {
                 cout<<"www"<<endl;
                 json realtime_msg;
                 realtime_msg["type"] = "private_message";
@@ -408,7 +410,7 @@ class Chat
     }
     
     void handleGetFriendUnreadMessages(int fd, const json& req)
-    {
+    {   flag=true;
         string username = req["user"];
         string friendName = req["friend"];
         unique_ptr<sql::Connection> con(getDBConnection());
