@@ -38,7 +38,12 @@ public:
     {
         string requester = req["from"];
         string target = req["to"];
-        
+        if(requester==target){
+            json response = {{"success", false}, {"message", "添加失败"}};
+            //send(fd, response.dump().c_str(), response.dump().size(), 0);
+            sendLengthPrefixed(fd,response);
+            return;
+        }
         // 获取数据库连接
         unique_ptr<sql::Connection> con(getDBConnection());
         
@@ -51,7 +56,8 @@ public:
         
         if (!userResult->next() || userResult->getInt("cnt") == 0) {
             json response = {{"success", false}, {"message", "用户不存在"}};
-            send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //send(fd, response.dump().c_str(), response.dump().size(), 0);
+            sendLengthPrefixed(fd,response);
             return;
         }
 
@@ -70,7 +76,8 @@ public:
         unique_ptr<sql::ResultSet> friendResult(checkFriendStmt->executeQuery());
         if (friendResult->next() && friendResult->getInt("cnt") > 0) {
             json response = {{"success", false}, {"message", "已经是好友"}};
-            send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //send(fd, response.dump().c_str(), response.dump().size(), 0);
+            sendLengthPrefixed(fd,response);
             return;
         }
 
@@ -87,7 +94,8 @@ public:
         unique_ptr<sql::ResultSet> requestResult(checkRequestStmt->executeQuery());
         if (requestResult->next() && requestResult->getInt("cnt") > 0) {
             json response = {{"success", false}, {"message", "已发送过好友请求"}};
-            send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //send(fd, response.dump().c_str(), response.dump().size(), 0);
+            sendLengthPrefixed(fd,response);
             return;
         }
 
@@ -106,7 +114,8 @@ public:
         unique_ptr<sql::ResultSet> blockResult(checkBlockStmt->executeQuery());
         if (blockResult->next() && blockResult->getInt("cnt") > 0) {
             json response = {{"success", false}, {"message", "已被对方屏蔽"}};
-            send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //send(fd, response.dump().c_str(), response.dump().size(), 0);
+            sendLengthPrefixed(fd,response);
             return;
         }
 
@@ -141,7 +150,8 @@ public:
     addNotification(target, notification);
 
         json response = {{"success", true}, {"online", is_online}};
-        send(fd, response.dump().c_str(), response.dump().size(), 0);
+        //send(fd, response.dump().c_str(), response.dump().size(), 0);
+        sendLengthPrefixed(fd,response);
     }
     // 处理查看请求列表
     void handleCheckRequests(int fd, const json& req) 
@@ -246,8 +256,9 @@ public:
         json response;
         response["success"] = true;
         response["friends"] = friends;
-        string responseStr = response.dump();
-        send(fd, responseStr.c_str(), responseStr.size(), 0);
+        // string responseStr = response.dump();
+        //send(fd, responseStr.c_str(), responseStr.size(), 0);
+        sendLengthPrefixed(fd,response);
     }
     void handleDeleteFriend(int fd, const json& req)
     {

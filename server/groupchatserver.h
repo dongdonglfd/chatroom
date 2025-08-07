@@ -25,6 +25,21 @@ public:
         sock=client_sock;
        string sender = data["sender"];
        int groupid = data["groupID"];
+       if(groupid==-1){
+        json exitmsg;
+            exitmsg["type"]="exit";
+            std::string responseStr = exitmsg.dump();
+                uint32_t len = htonl(responseStr.size());
+                json notification;
+                notification["type"]="exit";
+                notification["success"]= true;
+                notification["sender"]=sender;
+                // 先发送长度
+                send(sock, &len, sizeof(len), 0);
+                // 再发送数据
+                send(sock, responseStr.c_str(), responseStr.size(), 0);
+                return;
+       }
        string message = data["message"]; 
        time_t timestamp = static_cast<time_t>(data["timestamp"]);
        unique_ptr<sql::Connection> con(getDBConnection());
@@ -48,9 +63,11 @@ public:
                 // 发送者不在群组内
                 json errorResponse = {
                     {"success", false},
+                    {"type","quitgroup"},
                     {"message", "您不在该群组中，无法发送消息"}
                 };
-                sendRequest(errorResponse);
+                //sendRequest(errorResponse);
+                sendLengthPrefixed(client_sock,errorResponse);
                 return;
             }
         }

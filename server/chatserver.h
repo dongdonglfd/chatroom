@@ -172,6 +172,23 @@ class Chat
         Message msg;
         msg.sender = request["sender"];
         msg.receiver = request["recipient"];
+        if(msg.receiver=="===")
+        {
+            json exitmsg;
+            exitmsg["type"]="exit";
+            std::string responseStr = exitmsg.dump();
+                uint32_t len = htonl(responseStr.size());
+                json notification;
+                notification["type"]="exit";
+                notification["success"]= true;
+                notification["sender"]=msg.sender;
+                // 先发送长度
+                send(fd, &len, sizeof(len), 0);
+                // 再发送数据
+                send(fd, responseStr.c_str(), responseStr.size(), 0);
+                return;
+
+        }
         msg.content = request["message"];
         msg.timestamp = static_cast<time_t>(request["timestamp"]);
         msg.message_id = time(nullptr) * 1000 + rand() % 1000; // 简单实现的消息ID
