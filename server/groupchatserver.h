@@ -282,6 +282,7 @@ cout<<"123"<<endl;
             // response["messages"] = messagesArray; 
             // 序列化响应为JSON字符串
             string responseStr = response.dump();
+            cout<<responseStr<<endl;
             
             // 添加调试输出
             cout << "发送响应: " << responseStr << endl;

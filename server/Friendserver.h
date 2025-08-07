@@ -277,7 +277,18 @@ public:
         stmt->setString(2, friendUser);
         stmt->setString(3, friendUser);
         stmt->setString(4, user);
-        
+        unique_ptr<sql::PreparedStatement> disstmt(
+            con->prepareStatement(
+                "DELETE from blocks "
+                "where (user=? AND blocked_user = ?) "
+                "or (user=? AND blocked_user = ?) "
+            )
+        );
+        disstmt->setString(1, user);
+        disstmt->setString(2, friendUser);
+        disstmt->setString(3, friendUser);
+        disstmt->setString(4, user);
+        disstmt->executeUpdate();
         int affectedRows = stmt->executeUpdate();
         
         json response;

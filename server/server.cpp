@@ -140,6 +140,9 @@ private:
                 groupfile.groupfilesend(req,client_fd);
             }else if(type == "poll_notifications"){
                 handlePollNotifications(req,client_fd);
+            }else if(type=="loginexit"){
+                string name=req["name"];
+                online_users.erase(name);
             }
             
 
@@ -188,15 +191,15 @@ private:
        // 6. 检查目标用户是否在线
         
 
-            if (online_users.find(name) != online_users.end()) {
+            // if (online_users.find(name) != online_users.end()) {
                 
-                json response;
-                response["success"] = false;
-                response["message"] = "用户已登录";
-                send(fd, response.dump().c_str(), response.dump().size(), 0);
-                return ;
+            //     json response;
+            //     response["success"] = false;
+            //     response["message"] = "用户已登录";
+            //     send(fd, response.dump().c_str(), response.dump().size(), 0);
+            //     return ;
 
-            }
+            // }
 
         unique_ptr<Connection> con(mysql.getDBConnection());
         unique_ptr<PreparedStatement> stmt(
@@ -226,7 +229,9 @@ private:
             response["success"] = false;
             response["message"] = "数据库错误";
         }
-        send(fd, response.dump().c_str(), response.dump().size(), 0);
+        cout<<response.dump()<<endl;
+        //send(fd, response.dump().c_str(), response.dump().size(), 0);
+        sendLengthPrefixed(fd,response);
     }
     void handleForgotPassword(int fd, const json& req)
     {

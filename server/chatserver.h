@@ -45,8 +45,9 @@ struct Message {
     uint64_t message_id;
     bool delivered = false;
 };
-bool flag=false;
- unordered_map<string, int> online_users; // 在线用户表
+unordered_map<string, int> online_users; // 在线用户表
+unordered_map<string, bool> onlineing;
+ 
 //  void sendLengthPrefixed(int fd, const json& response) {
 //     std::string responseStr = response.dump();
 //     uint32_t len = htonl(responseStr.size());
@@ -174,8 +175,7 @@ class Chat
         msg.sender = request["sender"];
         msg.receiver = request["recipient"];
         if(msg.receiver=="===")
-        {   
-            flag=false;
+        {   onlineing[msg.sender]=false;
             json exitmsg;
             exitmsg["type"]="exit";
             std::string responseStr = exitmsg.dump();
@@ -239,7 +239,7 @@ class Chat
         {
             std::lock_guard<std::mutex> lock(online_users_mutex);
             auto it = online_users.find(msg.receiver);
-            if (it != online_users.end()&&flag) {
+            if (it != online_users.end()&&onlineing[msg.receiver]) {
                 cout<<"www"<<endl;
                 json realtime_msg;
                 realtime_msg["type"] = "private_message";
@@ -383,6 +383,7 @@ class Chat
             //     cout << "已发送未读消息给用户 " << username << endl;
             // }
             std::string responseStr = response.dump();
+            cout<<responseStr <<endl;
             uint32_t len = htonl(responseStr.size());
             
             // 先发送长度
@@ -410,7 +411,7 @@ class Chat
     }
     
     void handleGetFriendUnreadMessages(int fd, const json& req)
-    {   flag=true;
+    {   
         string username = req["user"];
         string friendName = req["friend"];
         unique_ptr<sql::Connection> con(getDBConnection());
@@ -468,6 +469,8 @@ class Chat
         send(fd, &len, sizeof(len), 0);
         // 再发送数据
         send(fd, responseStr.c_str(), responseStr.size(), 0);
+        onlineing[username]=true;
+        
     }
     // void handleChatHistoryRequest(int fd, const json& request)
     // {
