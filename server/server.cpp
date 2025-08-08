@@ -191,15 +191,16 @@ private:
        // 6. 检查目标用户是否在线
         
 
-            // if (online_users.find(name) != online_users.end()) {
+            if (online_users.find(name) != online_users.end()) {
                 
-            //     json response;
-            //     response["success"] = false;
-            //     response["message"] = "用户已登录";
-            //     send(fd, response.dump().c_str(), response.dump().size(), 0);
-            //     return ;
+                json response;
+                response["success"] = false;
+                response["message"] = "用户已登录";
+                //send(fd, response.dump().c_str(), response.dump().size(), 0);
+                sendLengthPrefixed(fd,response);
+                return ;
 
-            // }
+            }
 
         unique_ptr<Connection> con(mysql.getDBConnection());
         unique_ptr<PreparedStatement> stmt(
