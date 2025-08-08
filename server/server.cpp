@@ -28,6 +28,14 @@ private:
         }
         if(bytes_read <= 0) {
             cout<<"1111111111111111111"<<endl;
+            for (const auto& [key, value] : online_users) {
+                //std::cout << "Key: " << key << ", Value: " << value << std::endl;
+                if(value==client_fd)
+                {cout<<key<<endl;
+                    online_users.erase(key);
+                    break;
+                }
+            }
             close(client_fd);
             return;
         }

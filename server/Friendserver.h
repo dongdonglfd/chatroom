@@ -310,6 +310,34 @@ public:
     
         unique_ptr<sql::Connection> con(getDBConnection());
         try {
+            unique_ptr<sql::PreparedStatement> checkFriendStmt(
+            con->prepareStatement(
+                "SELECT COUNT(*) AS cnt FROM friends "
+                "WHERE (user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)"
+            )
+        );
+        checkFriendStmt->setString(1, user);
+        checkFriendStmt->setString(2, blockedUser);
+        checkFriendStmt->setString(3, blockedUser);
+        checkFriendStmt->setString(4, user);
+        
+        unique_ptr<sql::ResultSet> friendResult(checkFriendStmt->executeQuery());
+        // if (!friendResult->next()) {
+        //     cout<<"======"<<endl;
+        //     json response = {{"success", true}, {"message", "不是好友无法屏蔽"}};
+        //     send(fd, response.dump().c_str(), response.dump().size(), 0);
+        //     //sendLengthPrefixed(fd,response);
+        //     return;
+        // }
+        if (friendResult->next()) {
+            int count = friendResult->getInt("cnt");
+            if (count == 0) {
+                json response = {{"success", false}, {"message", "不是好友无法屏蔽"}};
+                send(fd, response.dump().c_str(), response.dump().size(), 0);
+                return;
+            }
+        }
+
         // 添加屏蔽关系
         unique_ptr<sql::PreparedStatement> stmt(
             con->prepareStatement(

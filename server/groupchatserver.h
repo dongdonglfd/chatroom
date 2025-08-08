@@ -1,4 +1,5 @@
 #include "chatserver.h"
+unordered_map<string, bool> grouping;
 class groupchat:public Chat
 {
     Chat group;
@@ -26,6 +27,7 @@ public:
        string sender = data["sender"];
        int groupid = data["groupID"];
        if(groupid==-1){
+        grouping[sender]=false;
         json exitmsg;
             exitmsg["type"]="exit";
             std::string responseStr = exitmsg.dump();
@@ -161,7 +163,7 @@ public:
                 
             }
             
-            if (isOnline) {
+            if (isOnline&&grouping[member]) {
                 // 用户在线，直接发送
                 //sendResponse(fd, message);
                 json notification;
@@ -375,6 +377,7 @@ cout<<"123"<<endl;
         response["messages"] = messages;
         //sendResponse(client_sock, response);
         sendLengthPrefixed(client_sock, response);
+        grouping[username]=true;
         
         } catch (const sql::SQLException& e) {
             json errorResponse = {
