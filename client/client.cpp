@@ -136,11 +136,11 @@ private:
         std::cout << "4. 退出\n";
         std::cout << "请选择操作 (1-4): ";
     }
-
+    mutex login;
     // 处理登录流程
     bool processLogin() {
         std::string username, password;
-        
+        lock_guard<mutex> lock(login);
         std::cout << "\n====== 用户登录 ======\n";
         std::cout << "用户名: ";
         std::getline(std::cin, username);
@@ -162,26 +162,19 @@ private:
         // 接收数据
         std::vector<char> buffer(len);
         size_t totalReceived = 0;
-        //char buffer[1024];
         while (totalReceived < len) {
              ssize_t n = recv(sockfd, buffer.data() + totalReceived, len - totalReceived, 0);
-            //ssize_t n = recv(sockfd, buffer + totalReceived, len - totalReceived, 0);
             if (n <= 0) break;
             totalReceived += n;
             
         }
-        //buf_.append(buffer);
-        //return json::parse(string(buffer.data(), len));
-        //cout<<response<<endl;
         cout<<"buffer="<<endl;
         for(auto & ch:buffer)
         {
             cout<<ch;
         }
-        //cout<<buf_<<endl;
         cout<<endl;
         json result = json::parse(string(buffer.data(), len));
-        //json result = json::parse(string(buffer, len));
         
         if (result["success"]) {
             current_user = username;
@@ -455,12 +448,16 @@ public:
                 case '1': friendMenu(sockfd,current_user); break;
                 case '2': groupMenu(sockfd,current_user); break;
                 case '3': 
-                {json req;
+                {
+                    notificationstop();
+                    json req;
                 req["type"]="loginexit";
                 req["name"]=current_user;
                 string request=req.dump();
                 send(sockfd,request.c_str(),request.size(),0);
-                notification_thread.detach();return;}
+                
+                return;
+                }
                 default: std::cout << "无效输入!\n";
             }
         }
