@@ -240,13 +240,13 @@ public:
     {
         
         
-        {
-        std::lock_guard<std::mutex> lock(thread_mutex);
-        if (notification_thread.joinable()) {
-            notification_thread_running = false;
-            notification_thread.join();
-        }
-    }
+    //     {
+    //     std::lock_guard<std::mutex> lock(thread_mutex);
+    //     if (notification_thread.joinable()) {
+    //         notification_thread_running = false;
+    //         notification_thread.join();
+    //     }
+    // }
     displayUnreadMessagesFromgroup(userName);
         recvThread = std::thread([this]() { receivegroupMessages(); });
         // 设置活动聊天状态
@@ -309,15 +309,15 @@ public:
          }
     }
     
-    // 13. 重启通知线程
-    {
-        std::lock_guard<std::mutex> lock(thread_mutex);
-        notification_thread_running = true;
-        notification_thread = std::thread(notificationPollingThread);
-    }
+    // // 13. 重启通知线程
+    // {
+    //     std::lock_guard<std::mutex> lock(thread_mutex);
+    //     notification_thread_running = true;
+    //     notification_thread = std::thread(notificationPollingThread);
+    // }
     
         
-        lock_guard<mutex> lock(outputMutex);
+        //lock_guard<mutex> lock(outputMutex);
         cout << "\n退出与 " <<groupid << " 的聊天" << endl;
     } 
     void receivegroupMessages()
