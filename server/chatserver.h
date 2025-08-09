@@ -101,6 +101,7 @@ class Chat
     // 添加用户到在线列表
     void userOnline(const std::string& username, int socket) {
         std::lock_guard<std::mutex> lock(online_mutex);
+        cout<<"==============================="<<username<<endl;
         online_users[username] = socket;
     }
     void handleCheckFriendValid(int fd, const json& req) 
@@ -263,6 +264,13 @@ class Chat
                 send(it->second, responseStr.c_str(), responseStr.size(), 0);
                 
                 delivered = true;
+            }
+            else if(it != online_users.end())
+            {
+                json notification;
+                notification["type"]="new_message";
+                notification["sender"]=msg.sender;
+                addNotification(msg.receiver,notification);
             }
         }
     }

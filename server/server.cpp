@@ -29,7 +29,8 @@ private:
         if(bytes_read <= 0) {
             cout<<"1111111111111111111"<<endl;
             for (const auto& [key, value] : online_users) {
-                //std::cout << "Key: " << key << ", Value: " << value << std::endl;
+                cout<<"===="<<endl;
+                std::cout << "Key: " << key << ", Value: " << value << std::endl;
                 if(value==client_fd)
                 {cout<<key<<endl;
                     online_users.erase(key);
@@ -55,7 +56,8 @@ private:
                 handleRegister(client_fd, req);
             } else if(type == "login") {
                 handleLogin(client_fd, req);
-                chat.userOnline(name, client_fd);
+                string loginname=req["username"];
+                chat.userOnline(loginname, client_fd);
             } else if(type == "msg") {
                 handleMessage(client_fd, req);
             }else if(type == "send_code") {
