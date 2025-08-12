@@ -355,6 +355,114 @@ public:
         
         return input;
     }
+    std::string repairUtf8(const std::string& input) {
+    std::string repaired;
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(input.data());
+    size_t len = input.size();
+    size_t i = 0;
+    
+    while (i < len) {
+        // 检查当前字符是否有效
+        size_t char_len = 1;
+        if (data[i] >= 0xC0) {
+            if (data[i] >= 0xF0) char_len = 4;
+            else if (data[i] >= 0xE0) char_len = 3;
+            else if (data[i] >= 0xC0) char_len = 2;
+        }
+        
+        // 检查是否有足够的字节
+        if (i + char_len > len) {
+            // 序列不完整
+            repaired += "�"; // 替换字符
+            break;
+        }
+        
+        // 验证字符
+        if (isValidUtf8Char(data + i, char_len)) {
+            // 有效字符，直接添加
+            repaired.append(input.substr(i, char_len));
+            i += char_len;
+        } else {
+            // 无效字符，添加替换字符
+            repaired += "�";
+            
+            // 尝试找到下一个有效字符的起始位置
+            bool found = false;
+            for (size_t j = i + 1; j < len; j++) {
+                if (data[j] <= 0x7F || data[j] >= 0xC0) {
+                    i = j;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if (!found) break;
+        }
+    }
+    
+    return repaired;
+}
+bool isValidUtf8Char(const unsigned char* bytes, size_t len) {
+    if (len == 0) return false;
+    
+    unsigned char first = bytes[0];
+    
+    // 单字节字符 (0xxxxxxx)
+    if (first <= 0x7F) {
+        return len == 1;
+    }
+    
+    // 双字节字符 (110xxxxx)
+    if (first >= 0xC0 && first <= 0xDF) {
+        if (len < 2) return false;
+        return (bytes[1] >= 0x80 && bytes[1] <= 0xBF);
+    }
+    
+    // 三字节字符 (1110xxxx)
+    if (first >= 0xE0 && first <= 0xEF) {
+        if (len < 3) return false;
+        return (bytes[1] >= 0x80 && bytes[1] <= 0xBF) &&
+               (bytes[2] >= 0x80 && bytes[2] <= 0xBF);
+    }
+    
+    // 四字节字符 (11110xxx)
+    if (first >= 0xF0 && first <= 0xF7) {
+        if (len < 4) return false;
+        return (bytes[1] >= 0x80 && bytes[1] <= 0xBF) &&
+               (bytes[2] >= 0x80 && bytes[2] <= 0xBF) &&
+               (bytes[3] >= 0x80 && bytes[3] <= 0xBF);
+    }
+    
+    return false;
+}
+// 验证整个字符串是否为有效的 UTF-8
+bool isValidUtf8(const std::string& str) {
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(str.data());
+    size_t len = str.size();
+    size_t i = 0;
+    
+    while (i < len) {
+        size_t char_len = 1;
+        if (data[i] >= 0xC0) {
+            if (data[i] >= 0xF0) char_len = 4;
+            else if (data[i] >= 0xE0) char_len = 3;
+            else if (data[i] >= 0xC0) char_len = 2;
+        }
+        
+        if (i + char_len > len) {
+            return false; // 序列不完整
+        }
+        
+        if (!isValidUtf8Char(data + i, char_len)) {
+            return false; // 无效字符
+        }
+        
+        i += char_len;
+    }
+    
+    return true;
+}
+
     void startChatSession(const string& friendName) 
     {
        displayUnreadMessagesFromFriend(friendName);
@@ -405,7 +513,10 @@ public:
             //string inputLine = readLineNonBlocking();
             string inputLine;
             getline(cin,inputLine);
-            
+            if (!isValidUtf8(inputLine)) 
+            {
+                inputLine = repairUtf8(inputLine);
+            }
             if (!inputLine.empty()) {
                 // 处理输入行
                 if (inputLine == "/exit") {
