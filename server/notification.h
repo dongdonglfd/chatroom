@@ -31,20 +31,18 @@ using namespace std;
 
 
 // 全局通知存储
-std::mutex notifications_mutex;
-std::unordered_map<std::string, std::vector<json>> user_notifications;
-void sendLengthPrefixed(int fd, const json& response) {
-    cout<<"length"<<endl;
+inline std::mutex notifications_mutex;
+inline std::unordered_map<std::string, std::vector<json>> user_notifications;
+inline void sendLengthPrefixed(int fd, const json& response) {
     std::string responseStr = response.dump();
     uint32_t len = htonl(responseStr.size());
-    cout<<"lenlen="<<len<<endl;
     send(fd, &len, sizeof(len), 0);
     send(fd, responseStr.c_str(), responseStr.size(), 0);
 }
-void handlePollNotifications(const json& request,int client_sock) {
+inline void handlePollNotifications(const json& request,int client_sock) {
     
     std::string username = request["username"];
-    
+    cout<<username<<endl;
     json response;
     response["type"] = "poll_notifications_response";
     
@@ -72,7 +70,7 @@ void handlePollNotifications(const json& request,int client_sock) {
     // send(client_sock, response_str.c_str(), response_str.size(), 0);
     sendLengthPrefixed(client_sock,response);
 }
-void addNotification(const std::string& username, const json& notification) 
+inline void addNotification(const std::string& username, const json& notification) 
 {
     cout<<"notify"<<endl;
     std::lock_guard<std::mutex> lock(notifications_mutex);

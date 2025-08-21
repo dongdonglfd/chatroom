@@ -12,22 +12,17 @@ private:
     Friendserver mysql;
     Chat chat;
     groupfileserver groupfile;
-
-    // 处理客户端请求
-    void handleClient(int client_fd) {
-        char buffer[4096];
-        ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
-        if(bytes_read > 0 )
-        {cout<<"22222222222"<<endl;
-         cout<<buffer<<endl;
-        
-            // json re = json::parse(string(buffer, bytes_read));
-            // string type = re["type"];
-            // if(type == "file_chunk")
-            //     cout<<type<<endl;
-        }
-        if(bytes_read <= 0) {
-            cout<<"1111111111111111111"<<endl;
+    uint32_t receiveLengthHeader(int client_fd) {
+    uint32_t len = 0;
+    char* ptr = reinterpret_cast<char*>(&len);
+    size_t toRead = sizeof(len);
+    
+    while (toRead > 0) {
+        ssize_t n = recv(client_fd, ptr, toRead, 0);
+        if (n <= 0) {
+            if (n == 0)
+            {
+                cout<<"1111111111111111111"<<endl;
             for (const auto& [key, value] : online_users) {
                 cout<<"===="<<endl;
                 std::cout << "Key: " << key << ", Value: " << value << std::endl;
@@ -37,9 +32,65 @@ private:
                     break;
                 }
             }
+            struct epoll_event ev;
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, client_fd,&ev);
             close(client_fd);
-            return;
+            throw runtime_error("连接已关闭");
+            } 
+            
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+            throw runtime_error("接收长度头错误");
         }
+        ptr += n;
+        toRead -= n;
+    }
+    
+    return ntohl(len);
+}
+std::string receiveBody(int client_fd, uint32_t len) {
+    // 检查长度有效性
+    const size_t MAX_LENGTH = 10 * 1024 * 1024; // 10MB
+    if (len > MAX_LENGTH) {
+        throw runtime_error("数据长度超过限制");
+    }
+    
+    std::vector<char> buffer(len);
+    size_t totalReceived = 0;
+    char* ptr = buffer.data();
+    
+    while (totalReceived < len) {
+        ssize_t n = recv(client_fd, ptr + totalReceived, len - totalReceived, 0);
+        
+        if (n <= 0) {
+            if (n == 0) throw runtime_error("连接在接收数据时关闭");
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+            throw runtime_error("接收数据错误");
+        }
+        
+        totalReceived += static_cast<size_t>(n); // 安全转换
+    }
+    
+    return std::string(buffer.data(), len);
+}
+
+    // 处理客户端请求
+    void handleClient(int client_fd) {
+        // char buffer[4096];
+        // ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
+        // if(bytes_read > 0 )
+        // {cout<<"22222222222"<<endl;
+        //  cout<<buffer<<endl;
+        
+        //     // json re = json::parse(string(buffer, bytes_read));
+        //     // string type = re["type"];
+        //     // if(type == "file_chunk")
+        //     //     cout<<type<<endl;
+        // }
+        uint32_t len = receiveLengthHeader(client_fd);
+            cout << "数据长度: " << len << " 字节" << endl;
+            
+            // 2. 接收数据体
+            std::string data = receiveBody(client_fd, len);
         // int len=0;
         // read(client_fd, &len, 4);heck_friend_vali
         // len = ntohl(len);
@@ -48,7 +99,8 @@ private:
         // data[len] = '\0';
         // strcpy(buffer,data);
         try {
-            json req = json::parse(string(buffer, bytes_read));
+            //json req = json::parse(string(buffer, bytes_read));
+            json req = json::parse(data);
             string type = req["type"];
             cout<<type<<endl;
 

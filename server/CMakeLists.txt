@@ -26,6 +26,12 @@ set(SERVER_HEADERS
     notification.h
     )
 set(SERVER_SOURCES
+    chatserver.cc
+    fileserver.cc
+    Friendserver.cc
+    groupchatserver.cc
+    groupfileserver.cc
+    groupserver.cc
     server.cpp
 )
 add_executable(server ${SERVER_SOURCES})
