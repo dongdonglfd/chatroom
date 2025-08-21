@@ -20,8 +20,15 @@ set(SERVER_HEADERS
    group.h
    groupchat.h
    groupfile.h 
+   chatclient.h
 )
 set(SERVER_SOURCES
+    fileclient.cc
+    friend.cc
+    group.cc
+    groupchat.cc
+    groupfile.cc 
+    chatclient.cc
     client.cpp
 )
 add_executable(client ${SERVER_SOURCES})
