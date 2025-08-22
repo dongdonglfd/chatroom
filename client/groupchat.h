@@ -38,7 +38,7 @@ private:
     json sendRequest(const json& request) ;
     json sendReq(const json& request);
 public:
-    
+    void sendLength(int fd, const json& response);
     void groupChat(int fd,string name);
     // 发送消息给指定用户
     void sendMessage(const string& recipient, const string& text) ;

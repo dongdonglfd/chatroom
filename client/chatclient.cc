@@ -53,9 +53,10 @@ void notificationPollingThread()
         };
         
         // 发送请求
-        std::string request_str = request.dump();
-        send(sockfd, request_str.c_str(), request_str.size(), 0);
-        string buffer=receiveLengthPrefixed();
+        // std::string request_str = request.dump();
+        // send(sockfd, request_str.c_str(), request_str.size(), 0);
+        sendLengthPrefixed(sockfd,request);
+         string buffer=receiveLengthPrefixed();
         // // 接收响应
         // char buffer[4096];
         // ssize_t bytes_read = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
@@ -189,30 +190,31 @@ void Chat::setNonBlockingTerminal() {
     //发送请求到服务器
     json Chat::sendRequest(const json& request) {
         // 序列化请求为JSON字符串
-        string requestStr = request.dump();
+        //string requestStr = request.dump();
         
         //发送请求到服务器
-        {
-            lock_guard<mutex> lock(outputMutex);
-            if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
-                cerr << "发送请求失败" << endl;
-                return {{"success", false}, {"message", "发送请求失败"}};
-            }
-        }
+        // {
+        //     lock_guard<mutex> lock(outputMutex);
+        //     if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
+        //         cerr << "发送请求失败" << endl;
+        //         return {{"success", false}, {"message", "发送请求失败"}};
+        //     }
+        // }
+
         // std::vector<char> data(requestStr.size()+4);
         // int _len = htonl(requestStr.size());
         
         // memcpy(data.data(),&_len,4);
         // memcpy(data.data()+4,requestStr.c_str(),requestStr.size());
         // int ret = send(sock, data.data(),data.size(),0);
-        
+        sendLengthPrefixed(sock,request);
         // 对于不需要即时响应的请求直接返回
         return {{"success", true}};
     }
      json Chat:: sendReq(const json& req) {
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
-
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
@@ -473,9 +475,9 @@ bool Chat::isValidUtf8(const std::string& str) {
                         {"sender", currentUser},
                         {"recipient", "==="}
                     };
-                    string str=request.dump();
-                    send(sock,str.c_str(),str.size(),0);
-
+                    // string str=request.dump();
+                    // send(sock,str.c_str(),str.size(),0);
+                    sendLengthPrefixed(sock,request);
                     break;
                 }
                 cout<<"\033[A"<< flush;
@@ -855,8 +857,9 @@ bool Chat::isValidUtf8(const std::string& str) {
         req["user"] = currentUser;
         req["friend"] = friendName;
         //json res = sendReq(req);
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
         uint32_t len;
             ssize_t bytesRead = recv(sock, &len, sizeof(len), MSG_WAITALL);
             cout<<"lenlen="<<len<<endl;
@@ -910,8 +913,9 @@ bool Chat::isValidUtf8(const std::string& str) {
         
         // 发送请求并获取响应
         //json response = sendRequest(request);
-        std::string requestStr = request.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         // char buffer[4096] = {0};
         // char c;
         // string res;
@@ -999,11 +1003,11 @@ bool Chat::isValidUtf8(const std::string& str) {
         std::string requestStr = request.dump();
         
         // 发送请求
-        if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
-            perror("发送请求失败");
-            return;
-        }
-        
+        // if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
+        //     perror("发送请求失败");
+        //     return;
+        // }
+        sendLengthPrefixed(sock,request);
         // 接收响应
         const int initialBufferSize = 4096;
         vector<char> buffer(initialBufferSize);

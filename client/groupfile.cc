@@ -10,12 +10,13 @@ string addressfile;
 //     std::string file_path;
 // };
 json groupfile::sendRequest(int sock, const json& request) {
-        string requestStr = request.dump();
-        ssize_t size=send(sock, requestStr.c_str(), requestStr.size(), 0);
-        if(size<0)
-        {
-            cout<<"send fail"<<endl;
-        }
+        // string requestStr = request.dump();
+        // ssize_t size=send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // if(size<0)
+        // {
+        //     cout<<"send fail"<<endl;
+        // }
+        sendLengthPrefixed(sock,request);
         char buffer[4096];
         ssize_t bytesRead = recv(sock, buffer, sizeof(buffer) - 1, 0);
         if (bytesRead > 0) {
@@ -30,12 +31,12 @@ json groupfile::sendRequest(int sock, const json& request) {
     }
     json groupfile::sendreq(int sock, const json& request) 
     {
-        // 序列化请求
-        std::string requestStr = request.dump();
+        // // 序列化请求
+        // std::string requestStr = request.dump();
         
-        // 发送请求
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
-        
+        // // 发送请求
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         // 接收响应
         // char buffer[4096] = {0};
         // ssize_t bytes = recv(sock, buffer, sizeof(buffer), 0);
@@ -62,12 +63,12 @@ json groupfile::sendRequest(int sock, const json& request) {
     }
     json groupfile::sendReq(int sock, const json& request) 
     {
-        // 序列化请求
-        std::string requestStr = request.dump();
+        // // 序列化请求
+        // std::string requestStr = request.dump();
         
-        // 发送请求
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
-        
+        // // 发送请求
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         // 接收响应
         char buffer[4096] = {0};
         ssize_t bytes = recv(sock, buffer, sizeof(buffer), 0);
@@ -219,9 +220,10 @@ json groupfile::sendRequest(int sock, const json& request) {
         
         // 2. 发送请求
         //json response = sendReq(sock, request);// 3. 检查响应状态
-        std::string requestStr = request.dump();
-        // 发送请求
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // // 发送请求
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         uint32_t len;
         recv(sock, &len, sizeof(len), MSG_WAITALL);
         len = ntohl(len);

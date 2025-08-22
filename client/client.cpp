@@ -1,102 +1,6 @@
 #include"friend.h"
 #include"group.h"
 #include<signal.h>
-//string buf_;
-// string notifyaddress;
-// std::mutex notification_mutex;
-// //std::mutex output_mutex;
-// std::queue<std::string> notification_queue;
-// std::condition_variable notification_cv;
-
-// // 线程控制
-// std::atomic<bool> notification_thread_running(false);
-
-// int sockfd;
-// std::string current_user;
-// void processNotifications() {
-//     std::unique_lock<std::mutex> lock(notification_mutex);
-    
-//     while (!notification_queue.empty()) {
-//         std::string notification_str = notification_queue.front();
-//         notification_queue.pop();
-        
-//         try {
-//             json notification = json::parse(notification_str);
-//             std::string type = notification["type"];
-            
-//             if (type == "friend_request") {
-//                 std::string requester = notification["requester"];
-//                 std::cout << "\n[系统通知] 收到好友请求来自: " << requester << std::endl;
-//             } else if (type == "group_invite") {
-//                 std::string group_name = notification["group_name"];
-//                 std::string inviter = notification["inviter"];
-//                 std::cout << "\n[系统通知] 收到群组邀请: " << group_name << " 来自: " << inviter << std::endl;
-//             } else if (type == "new_message") {
-//                 std::string sender = notification["sender"];
-//                 std::string content = notification["content"];
-//                 std::cout << "\n[新消息] " << sender << ": " << content << std::endl;
-//             }
-            
-//             // 重新显示提示符
-//             // std::cout << "> " << std::flush;
-//         } catch (const json::parse_error& e) {
-//             std::cerr << "通知处理错误: " << e.what() << std::endl;
-//         }
-//     }
-// }
-// void notificationPollingThread()
-// {
-//     std::lock_guard<std::mutex> lock(output_mutex);
-//     const int POLL_INTERVAL = 2;     
-//     while (notification_thread_running) {
-//         // 构造轮询请求
-//         json request = {
-//             {"type", "poll_notifications"},
-//             {"username", current_user}
-//         };
-        
-//         // 发送请求
-//         std::string request_str = request.dump();
-//         send(sockfd, request_str.c_str(), request_str.size(), 0);
-        
-//         // 接收响应
-//         char buffer[4096];
-//         ssize_t bytes_read = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
-        
-//         if (bytes_read > 0) {
-//             buffer[bytes_read] = '\0';
-//             json response = json::parse(buffer);
-//             if (response["success"]) {
-//                     // 使用互斥锁保护整个输出块
-                    
-                    
-//                     for (const auto& notification : response["notifications"]) {
-//                         std::string type = notification["type"];
-                        
-//                         if (type == "friend_request") {
-//                             std::string requester = notification["requester"];
-//                             std::cout << "\n[系统通知] 收到好友请求来自: " << requester << std::endl;
-//                         } else if (type == "group_join_request") {
-//                             int group_name = notification["group_id"];
-//                             std::string inviter = notification["applicant"];
-//                             std::cout << "\n[系统通知] 收到群组申请消息: " <<"群号"<< group_name << " 来自: " << inviter << std::endl;
-//                         } 
-//                         // else if (type == "new_message") {
-//                         //     std::string sender = notification["sender"];
-//                         //     //std::string content = notification["content"];
-//                         //     std::cout << "\n[新消息] " << sender << std::endl;
-//                         // } 
-//                     }
-                    
-//                 }
-//         }
-        
-//         // 等待轮询间隔
-//         for (int i = 0; i < POLL_INTERVAL && notification_thread_running; i++) {
-//             std::this_thread::sleep_for(std::chrono::seconds(1));
-//         }
-//     }
-// }
 
 class Client :public Friend ,public Group
 {
@@ -325,6 +229,9 @@ public:
 
     void sendMessage(const std::string& message) 
     {
+        // send(sockfd, message.c_str(), message.size(), 0);
+        uint32_t len = htonl(message.size());
+        send(sockfd, &len, sizeof(len), 0);
         send(sockfd, message.c_str(), message.size(), 0);
     }
 
@@ -453,9 +360,9 @@ public:
                     json req;
                 req["type"]="loginexit";
                 req["name"]=current_user;
-                string request=req.dump();
-                send(sockfd,request.c_str(),request.size(),0);
-                
+                // string request=req.dump();
+                // send(sockfd,request.c_str(),request.size(),0);
+                 sendLengthPrefixed(sockfd,req);
                 return;
                 }
                 default: std::cout << "无效输入!\n";

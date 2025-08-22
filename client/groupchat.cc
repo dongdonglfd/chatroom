@@ -1,30 +1,37 @@
 #include"groupchat.h"
+void groupchat::sendLength(int fd, const json& response) {
+    std::string responseStr = response.dump();
+    uint32_t len = htonl(responseStr.size());
+    send(fd, &len, sizeof(len), 0);
+    send(fd, responseStr.c_str(), responseStr.size(), 0);
+}
  json groupchat::sendRequest(const json& request) {
-        std::string requestStr = request.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLength(sock,request);
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
     }
     json groupchat::sendReq(const json& request) {
         // 序列化请求为JSON字符串
-        string requestStr = request.dump();
+        // string requestStr = request.dump();
         
-        //发送请求到服务器
-        {
-            lock_guard<mutex> lock(outputMutex);
-            if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
-                cerr << "发送请求失败" << endl;
-                return {{"success", false}, {"message", "发送请求失败"}};
-            }
-        }
+        // //发送请求到服务器
+        // {
+        //     lock_guard<mutex> lock(outputMutex);
+        //     if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
+        //         cerr << "发送请求失败" << endl;
+        //         return {{"success", false}, {"message", "发送请求失败"}};
+        //     }
+        // }
         // std::vector<char> data(requestStr.size()+4);
         // int _len = htonl(requestStr.size());
         
         // memcpy(data.data(),&_len,4);
         // memcpy(data.data()+4,requestStr.c_str(),requestStr.size());
         // int ret = send(sock, data.data(),data.size(),0);
-        
+        sendLength(sock,request);
         // 对于不需要即时响应的请求直接返回
         return {{"success", true}};
     }
@@ -405,8 +412,9 @@
         
         // 发送请求并获取响应
         //json response = sendRequest(request);
-        std::string requestStr = request.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLength(sock,request);
         // char buffer[4096] = {0};
         // recv(sock, buffer, 4096, 0);
         uint32_t len;
@@ -453,8 +461,9 @@
                 {"groupid", groupid}
             };
             //sendRequest(ack);
-        std::string req = ack.dump();
-        send(sock, req.c_str(), req.size(), 0);
+        // std::string req = ack.dump();
+        // send(sock, req.c_str(), req.size(), 0);
+        sendLength(sock,ack);
     }
     void groupchat::querygroupHistory(int groupid)
     {
@@ -464,14 +473,14 @@
             {"groupid", groupid},
         };
         
-        std::string requestStr = request.dump();
+        // std::string requestStr = request.dump();
         
-        // 发送请求
-        if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
-            perror("发送请求失败");
-            return;
-        }
-        
+        // // 发送请求
+        // if (send(sock, requestStr.c_str(), requestStr.size(), 0) < 0) {
+        //     perror("发送请求失败");
+        //     return;
+        // }
+        sendLength(sock,request);
         // 接收响应
         const int initialBufferSize = 4096;
         vector<char> buffer(initialBufferSize);

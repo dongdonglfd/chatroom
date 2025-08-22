@@ -1,7 +1,8 @@
 #include"group.h"
     json Group::sendRequest(const json& req) {
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
 
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);

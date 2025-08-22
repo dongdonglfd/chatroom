@@ -1,27 +1,30 @@
 #include"friend.h"
 json Friend::sendRequest(const json& req) {
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
     }
     json Friend::sendReq(const json& req,int fd) {
         int sock=fd;
-        std::string requestStr = req.dump();
-        ssize_t bytes_sent = send(sock, requestStr.c_str(), requestStr.size(), 0);
-        if (bytes_sent == -1) {
-        perror("send failed");
-        exit(EXIT_FAILURE);
-    } 
+        // std::string requestStr = req.dump();
+        // ssize_t bytes_sent = send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // if (bytes_sent == -1) {
+        // perror("send failed");
+        // exit(EXIT_FAILURE);
+        sendLengthPrefixed(sock,req);
+    //} 
         char buffer[4096] = {0};
         recv(sock, buffer, 4096, 0);
         return json::parse(buffer);
     }
     json Friend::requestlength(const json& req)
     {
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
         uint32_t len;
         recv(sock, &len, sizeof(len), MSG_WAITALL);
         len = ntohl(len);
@@ -210,10 +213,11 @@ json Friend::sendRequest(const json& req) {
         req["user"] = currentUser;
 
         // 发送请求并获取响应
-        cout<<"111"<<endl;
+        
         //json res = sendRequest(req);
-        std::string requestStr = req.dump();
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = req.dump();
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,req);
         uint32_t len;
         recv(sock, &len, sizeof(len), MSG_WAITALL);
         len = ntohl(len);
@@ -313,8 +317,9 @@ json Friend::sendRequest(const json& req) {
         };
 
         //json req = sendReq(request, sockfd);
-        std::string requestStr = request.dump();
-        ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sockfd,request);
         string str=receiveLengthPrefixed();
         cout<<str<<endl;
         json req=json::parse(str);
@@ -377,8 +382,9 @@ json Friend::sendRequest(const json& req) {
         };
 
         //json req = sendReq(request, sockfd);
-        std::string requestStr = request.dump();
-        ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        // std::string requestStr = request.dump();
+        // ssize_t bytes_sent = send(sockfd, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sockfd,request);
         string str=receiveLengthPrefixed();
         cout<<str<<endl;
         json req=json::parse(str);

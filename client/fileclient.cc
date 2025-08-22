@@ -9,8 +9,9 @@ string address;
 //     std::string file_path;
 // };
 json FileTransferClient::sendRequest(int sock, const json& request) {
-        string requestStr = request.dump();
-        ssize_t size=send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // string requestStr = request.dump();
+        // ssize_t size=send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         // if(size<0)
         // {
         //     cout<<"send fail"<<endl;
@@ -29,12 +30,12 @@ json FileTransferClient::sendRequest(int sock, const json& request) {
     }
     json FileTransferClient::sendreq(int sock, const json& request) 
     {
-        // 序列化请求
-        std::string requestStr = request.dump();
+        // // 序列化请求
+        // std::string requestStr = request.dump();
         
-        // 发送请求
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
-        
+        // // 发送请求
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         // 接收响应
         char buffer[4096] = {0};
         ssize_t bytes = recv(sock, buffer, sizeof(buffer), 0);
@@ -197,10 +198,11 @@ json FileTransferClient::sendRequest(int sock, const json& request) {
         
         // 2. 发送请求
         //json response = sendreq(sock, request);// 3. 检查响应状态
-        std::string requestStr = request.dump();
+        // std::string requestStr = request.dump();
         
-        // 发送请求
-        send(sock, requestStr.c_str(), requestStr.size(), 0);
+        // // 发送请求
+        // send(sock, requestStr.c_str(), requestStr.size(), 0);
+        sendLengthPrefixed(sock,request);
         uint32_t len;
         recv(sock, &len, sizeof(len), MSG_WAITALL);
         len = ntohl(len);
