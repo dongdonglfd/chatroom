@@ -79,3 +79,5 @@ cd build
 cd client
 ./client [ip] [端口号]
 ```
+[三次握手四次挥手](https://blog.csdn.net/dongdongdonglfd/article/details/150491168?fromshare=blogdetail&sharetype=blogdetail&sharerId=150491168&sharerefer=PC&sharesource=dongdongdonglfd&sharefrom=from_link)
+[总结](https://blog.csdn.net/dongdongdonglfd/article/details/150583570?fromshare=blogdetail&sharetype=blogdetail&sharerId=150583570&sharerefer=PC&sharesource=dongdongdonglfd&sharefrom=from_link)
